@@ -1,0 +1,16 @@
+# 本地临时 / 校验脚本
+_*.js
+_inline_check.js
+_mix_check.js
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
+
+# 敏感文件（Token 永远不要提交）
+*token*.txt
+.env
