@@ -31,7 +31,6 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .hint{text-align:center;color:#999;font-size:12px;margin-top:22px;}
 /* 进度条 */
 .progress{background:var(--lapis);color:#fff;border-radius:12px;padding:8px 14px;font-size:13px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
-.progress .leak{background:rgba(255,255,255,.18);padding:2px 8px;border-radius:8px;font-size:11px;}
 .scene-label{font-size:13px;color:var(--lapis2);font-weight:700;margin:6px 0 10px;display:flex;align-items:center;gap:6px;}
 .scene-label::before{content:"";width:4px;height:14px;background:var(--lapis2);border-radius:2px;}
 /* 聊天 */
@@ -109,7 +108,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 
   <!-- 屏2：剧情 -->
   <section id="s-story" class="screen">
-    <div class="progress"><span id="p-day">第 3 天 / 共 21 天</span><span class="leak" id="p-leak">泄露 Lv.0</span></div>
+    <div class="progress"><span id="p-day">第 3 天 / 共 21 天</span></div>
     <div class="scene-label" id="scene-label">第 1 关 · 冒充客服退款</div>
     <div class="chat" id="chat"></div>
     <div class="options" id="options"></div>
@@ -136,7 +135,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
       <div class="stat-row">
         <div><div class="n" id="st-clear">0</div><div class="l">守住关数</div></div>
         <div><div class="n" id="st-bust">0</div><div class="l">中招关数</div></div>
-        <div><div class="n" id="st-leak">0</div><div class="l">泄露等级</div></div>
+        <div><div class="n" id="st-leak">0</div><div class="l">泄露次数</div></div>
       </div>
       <div class="end-rank" id="end-rank"></div>
       <div class="share-card">
@@ -223,7 +222,6 @@ function startLine(id){
 function renderLevel(){
   const lv=state.playlist[state.level];
   document.getElementById('p-day').textContent='第 '+lv.day+' 天 / 共 21 天';
-  document.getElementById('p-leak').textContent='泄露 Lv.'+state.leakLevel;
   document.getElementById('scene-label').textContent='第 '+(state.level+1)+' 关 · '+lv.title;
   // chat
   let html='';
@@ -272,7 +270,7 @@ function endGame(){
   document.getElementById('end-title').textContent=title;
   document.getElementById('end-title').style.color=color;
   document.getElementById('end-score').textContent='综合评分 '+sc+' / 100';
-  document.getElementById('end-leak').textContent= state.leakLevel>0 ? ('⚠️ 你被打上"易骗标签"等级 Lv.'+state.leakLevel+' — 信息已流入黑产') : '✅ 零泄露，信息未外流';
+  document.getElementById('end-leak').textContent= state.leakLevel>0 ? ('🚨 你的信息已泄露'+(state.leakLevel>1?'，还被转卖了'+state.leakLevel+'手——骗子群里正传你的资料':'——黑产名单上已经有你')) : '✅ 零泄露，信息未外流';
   document.getElementById('st-clear').textContent=state.cleared;
   document.getElementById('st-bust').textContent=state.busted;
   document.getElementById('st-leak').textContent=state.leakLevel;
