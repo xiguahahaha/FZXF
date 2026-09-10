@@ -239,15 +239,23 @@ function renderLevel(){
   show('s-story');
 }
 
+/* 统一术语：守住 / 中招(选错但没全错) / 泄露(全错)。
+   关卡数据里的 vtext 可能写作"虚惊""中招"，这里按 verdict 统一覆盖，保证与结算统计口径一致。 */
+const VTEXT={safe:'🛡️ 脱险',risk:'⚠️ 中招',hit:'💥 信息泄露'};
+const VSUB ={safe:'成功守住',risk:'选错了，但没全错',hit:'全错，信息已外流'};
+
 function choose(i){
   const lv=state.playlist[state.level];
   const o=currentOpts[i];
+  // 三档互斥：best=守住 / ok=中招(选错但没全错) / bad=泄露(全错的那种)
   if(o.tag==='best') state.cleared++;
-  if(o.leak) {state.leakLevel++; state.busted++;}
+  else if(o.tag==='bad' || o.leak) state.leakLevel++;
+  else state.busted++;
   // review
   document.getElementById('r-title').textContent='第 '+(state.level+1)+' 关复盘 · '+lv.title;
   const vd=document.getElementById('r-verdict');
-  vd.className='verdict '+o.verdict; vd.textContent=o.vtext+' '+ (o.verdict==='safe'?'成功守住':o.verdict==='risk'?'险中脱险':'被骗中招');
+  vd.className='verdict '+o.verdict;
+  vd.textContent=VTEXT[o.verdict]+' · '+VSUB[o.verdict];
   document.getElementById('r-desc').textContent=o.desc;
   document.getElementById('r-kp').textContent='📌 防骗知识点：'+lv.kp;
   show('s-review');
@@ -260,17 +268,22 @@ function nextLevel(){
 }
 
 function endGame(){
-  const score = state.cleared*20 - state.busted*15 - state.leakLevel*6;
+  // 守住 +20 / 中招 -10 / 泄露 -25（全错最重，满分 100 = 五关全守）
+  const score = state.cleared*20 - state.busted*10 - state.leakLevel*25;
   const sc = Math.max(0, score);
   let title, color, desc;
   if(sc>=100){title='🏆 反诈先锋（传说）';color='var(--gold)';desc='五关全守、零泄露！你打断了整条泄露链，这一世养老钱稳如泰山。';}
-  else if(sc>=70){title='🛡️ 防骗觉醒者';color='var(--lapis2)';desc='守得不错，但有过虚惊。记住：骗子专挑松懈时下手。';}
+  else if(sc>=70){title='🛡️ 防骗觉醒者';color='var(--lapis2)';desc='大部分守住了，有过中招但没让信息外流。记住：骗子专挑松懈时下手。';}
   else if(sc>=40){title='⚠️ 险些上当';color='var(--warn)';desc='踩了坑才醒来。信息一旦泄露，后续骗局会精准十倍——下次别给机会。';}
   else {title='💤 待觉醒者';color='var(--bad)';desc='这一世栽了跟头。重生归来，带着记忆，把每一关的验证码都攥紧。';}
   document.getElementById('end-title').textContent=title;
   document.getElementById('end-title').style.color=color;
   document.getElementById('end-score').textContent='综合评分 '+sc+' / 100';
-  document.getElementById('end-leak').textContent= state.leakLevel>0 ? ('🚨 你的信息已泄露'+(state.leakLevel>1?'，还被转卖了'+state.leakLevel+'手——骗子群里正传你的资料':'——黑产名单上已经有你')) : '✅ 零泄露，信息未外流';
+  let leakTxt;
+  if(state.leakLevel>0) leakTxt='🚨 你的信息已泄露'+(state.leakLevel>1?'，还被转卖了'+state.leakLevel+'手——骗子群里正传你的资料':'——黑产名单上已经有你');
+  else if(state.busted>0) leakTxt='⚠️ 钱和信息都还在，但你中招了 '+state.busted+' 次——已被标记为"好下手的人"，下一波会精准得多';
+  else leakTxt='✅ 零泄露，信息未外流';
+  document.getElementById('end-leak').textContent=leakTxt;
   document.getElementById('st-clear').textContent=state.cleared;
   document.getElementById('st-bust').textContent=state.busted;
   document.getElementById('st-leak').textContent=state.leakLevel;
