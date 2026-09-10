@@ -41,15 +41,22 @@ reborn-antifraud-local/
     leakExtra:'（信息已泄露）后续精准话术补刀',                         // leakLevel>0 时显示
     options:[
       {tag:'best', label:'最优选择文案', verdict:'safe', vtext:'🛡️ 脱险', desc:'复盘', leak:0},
-      {tag:'ok',   label:'次优选择文案', verdict:'risk', vtext:'⚠️ 虚惊', desc:'复盘', leak:0},
-      {tag:'bad',  label:'最差选择文案', verdict:'hit',  vtext:'💥 中招', desc:'复盘', leak:1},
+      {tag:'ok',   label:'次优选择文案', verdict:'risk', vtext:'⚠️ 中招', desc:'复盘', leak:0},
+      {tag:'bad',  label:'最差选择文案', verdict:'hit',  vtext:'💥 信息泄露', desc:'复盘', leak:1},
     ],
     kp:'防骗知识点'
   }
   ```
+- **三档判定口径**（`index.html` 的 `choose()` 里，三档互斥、相加恒为 5）：
+  | 选项 tag | 含义 | 计入统计 | 计分 |
+  |---|---|---|---|
+  | `best` | 选对了，成功守住 | 守住关数 | +20 |
+  | `ok` | **中招**：选错了，但没全错、信息没外流 | 中招关数 | −10 |
+  | `bad` | **泄露**：全错的那种，信息已外流 | 泄露次数 | −25 |
+  > 结算页三个数字相加 = 本局关数（5）。术语以 `VTEXT` / `VSUB` 两个映射统一覆盖，改文案不用动 150 条关卡数据。
 - **加关**：往对应身份线的数组里照格式新增一个对象即可（给老年线加关就加进 `elder`），游戏会自动纳入随机池。
 - **改话术**：直接改 `chat` / `options` 的文案。选项`label`故意写得模棱两可，别写成"正确答案"。
-- **难度**：评分在 `index.html` 的 `endGame()` 里（`cleared*20 - busted*15 - leakLevel*6`）。
+- **难度**：评分在 `index.html` 的 `endGame()` 里（`cleared*20 - busted*10 - leakLevel*25`，满分 100 = 五关全守）。
 
 > 改完刷新浏览器即可生效，无需构建。
 
@@ -63,8 +70,27 @@ reborn-antifraud-local/
 - ✅ 青年线：15 关池（游戏账号担保/裸聊敲诈/注销校园贷/境外高薪/跑分洗钱/假房源等）
 - ✅ 老年线：15 关池（冒充孙子/养老金认证/民族资产解冻/收藏品鉴定费/上门安装等）
 - ✅ 中老年加权混合：中年局抽本线 4 关 + 老年线掺 1 关，老年局反之（青年线不受影响）
+- ✅ 三档判定分离：守住 / 中招（选错但没全错）/ 泄露（全错），三项互斥相加为 5，不再出现"中招数恒等于泄露数"
+- ✅ 防骗笔记（错题本）：结算页点「📝 生成我的防骗笔记」出独立一页，按 **⚠️ 需要复习 / ✅ 已经守住** 分区罗列本局 5 关（错的关额外显示"我当时选了…"），顶部有「本局最该记住的一条」（优先取泄露关的知识点），白底深字为截图分享优化
 - ✅ 全球人次统计：首页显示"已有 N 人次完成测试"，结算页显示"你是全球第 N 位"；走 Abacus 免费计数 API，不可达时自动降级 localStorage 本地计数
 - ⏳ 分享卡 canvas 化、跨身份对比结局：待做
+
+## 防骗笔记实现要点
+
+- `choose()` 里把每关选择压入 `state.log`（`title` / `kp` / `tag` / `verdict` / `myLabel` / `desc`），`startLine()` 重置为 `[]`
+- `buildNote()` 拼 HTML：三栏统计 → 最该记住的一条 → 需要复习区（`showMy=true`，附"我当时选了…"）→ 已经守住区（只列知识点）→ 品牌引导footer
+- 术语徽章按 `tag` 上色（`badge best/ok/bad`），与选项反馈的 `VTEXT` 口径一致
+- 全对时显示「🎉 五关全守住，本局没有错题」且不渲染复习区；全错时不渲染守住区
+- 所有关卡文案经 `esc()` 转义后再插入 `innerHTML`
+
+## 部署与更新流程（重要）
+
+本项目部署在 GitHub Pages（双仓：网页 `FZXF` + 数据 `FZXF-data`）。
+
+> ⚠️ **本机 git 走不通**：环境代理只放行 curl，git 的 CONNECT 隧道会 502，`git push` / `git fetch` 均失败。
+> **更新网页的正确姿势**：改本地文件后，用 GitHub Contents API 提交（`PUT /repos/{owner}/{repo}/contents/{path}`，body 带 `message` / `content`(base64) / `sha`(线上当前 sha) / `branch`），走 curl 由代理放行。
+> 本地 git 仓库仅作版本留档，与远程历史可能分叉，不影响 API 提交。
+> 提交后 CDN 缓存需 **40~60 秒**才刷新，验证时先查 `/pages/builds/latest` 确认 `built`，再加 `?cb=时间戳` 重新拉取。
 
 ## 人次统计说明
 
