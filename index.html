@@ -74,6 +74,39 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .share-card .big{font-size:30px;font-weight:900;letter-spacing:1px;}
 .share-card .mid{font-size:14px;opacity:.92;margin-top:8px;line-height:1.7;}
 .share-card .qr{margin-top:14px;font-size:12px;background:rgba(255,255,255,.15);display:inline-block;padding:6px 12px;border-radius:10px;}
+.btn.ghost{background:#fff;color:var(--lapis);border:1.5px solid #d5dde7;}
+/* 防骗笔记（错题本）：白底深字，为截图分享优化 */
+.note-tip{background:#fff8e6;border:1px solid #f0d9a0;color:#8a6a1e;font-size:12.5px;line-height:1.6;padding:9px 12px;border-radius:10px;margin-bottom:14px;}
+.note-paper{background:#fff;border-radius:16px;padding:22px 18px 24px;box-shadow:0 4px 18px rgba(30,58,95,.10);}
+.note-hd{border-bottom:2px solid var(--lapis);padding-bottom:11px;margin-bottom:15px;}
+.note-hd .t{font-size:21px;font-weight:900;color:var(--lapis);letter-spacing:.5px;}
+.note-hd .m{font-size:12px;color:#7b8794;margin-top:6px;}
+.note-stat{display:flex;gap:8px;margin-bottom:17px;}
+.note-stat div{flex:1;text-align:center;border-radius:10px;padding:9px 4px;}
+.note-stat .n{font-size:20px;font-weight:900;line-height:1.2;}
+.note-stat .l{font-size:11px;margin-top:2px;}
+.ns-ok{background:#eaf7e4;} .ns-ok .n{color:var(--ok);} .ns-ok .l{color:#4f7d38;}
+.ns-bust{background:#fdf4e3;} .ns-bust .n{color:var(--warn);} .ns-bust .l{color:#96702a;}
+.ns-leak{background:#fdeaea;} .ns-leak .n{color:var(--bad);} .ns-leak .l{color:#a33333;}
+.note-hero{background:linear-gradient(135deg,#1e3a5f,#2c5f8a);color:#fff;border-radius:12px;padding:14px 15px;margin-bottom:18px;}
+.note-hero .k{font-size:11px;opacity:.85;letter-spacing:1px;}
+.note-hero .v{font-size:14.5px;font-weight:700;line-height:1.65;margin-top:6px;}
+.note-empty{text-align:center;padding:8px 4px 14px;font-size:13.5px;color:#4f7d38;font-weight:700;}
+.note-sec{font-size:12.5px;font-weight:800;color:var(--lapis);letter-spacing:1px;margin:0 0 11px;display:flex;align-items:center;gap:7px;}
+.note-sec::after{content:'';flex:1;height:1px;background:#e3e9f0;}
+.note-item{border-left:3px solid #d5dde7;padding-left:11px;margin-bottom:14px;}
+.note-item.wrong{border-left-color:var(--bad);}
+.note-item.warn{border-left-color:var(--warn);}
+.note-item .ttl{font-size:14px;font-weight:800;color:#222;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.note-item .badge{font-size:10.5px;font-weight:700;padding:1.5px 7px;border-radius:6px;white-space:nowrap;}
+.badge.ok,.badge.best{background:#eaf7e4;color:#4f7d38;}
+.badge.warn{background:#fdf4e3;color:#96702a;}
+.badge.bad{background:#fdeaea;color:#a33333;}
+.note-item .me{font-size:12.5px;color:#5a6672;margin-top:5px;line-height:1.6;}
+.note-item .me b{color:#333;font-weight:700;}
+.note-item .kp{font-size:12.5px;color:#1e3a5f;background:#eef3f9;border-radius:8px;padding:7px 10px;margin-top:7px;line-height:1.65;}
+.note-ft{margin-top:18px;padding-top:13px;border-top:1px dashed #d5dde7;text-align:center;font-size:11.5px;color:#8b96a2;line-height:1.8;}
+.note-ft .brand{color:var(--lapis);font-weight:800;font-size:13px;}
 .toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:99;display:none;}
 /* 人次统计 */
 .stats-line{text-align:center;margin-top:10px;font-size:13px;color:#666;}
@@ -143,7 +176,17 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div class="mid" id="sc-desc"></div>
         <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
       </div>
-      <button class="btn" onclick="restart()">↻ 重玩这一世</button>
+      <button class="btn" id="btn-note" onclick="openNote()">📝 生成我的防骗笔记</button>
+      <button class="btn ghost" onclick="restart()">↻ 重玩这一世</button>
+    </div>
+  </section>
+
+  <!-- 屏5：防骗笔记（错题本，截图友好） -->
+  <section id="s-note" class="screen">
+    <div class="note-wrap">
+      <div class="note-tip">📸 长按图片区域可保存，或直接手机截屏 —— 存下来，下次遇到就能对上号</div>
+      <div class="note-paper" id="note-paper"></div>
+      <button class="btn ghost" onclick="show('s-end')">← 返回结算</button>
     </div>
   </section>
 
@@ -163,7 +206,7 @@ const DATA_URL='https://xiguahahaha.github.io/FZXF-data/levels.js';
     .catch(()=>{});  // 拉不到就用本地兜底，不影响游玩
 })();
 
-let state = {identity:null, level:0, leakLevel:0, cleared:0, busted:0, playlist:[]};
+let state = {identity:null, level:0, leakLevel:0, cleared:0, busted:0, log:[], playlist:[]};
 let currentOpts=[];
 const SAVE_KEY='reborn_antifraud_v1';
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -215,7 +258,7 @@ function startLine(id){
     picks = shuffle([...(LINE[id]||LINE.mid)]).slice(0,5);
   }
   shuffle(picks); // 掺入的关打乱到 5 关中任意位置
-  state={identity:id, level:0, leakLevel:0, cleared:0, busted:0, playlist: picks.map((lv,i)=>({...lv, day:days[i]}))};
+  state={identity:id, level:0, leakLevel:0, cleared:0, busted:0, log:[], playlist: picks.map((lv,i)=>({...lv, day:days[i]}))};
   renderLevel();
 }
 
@@ -251,6 +294,8 @@ function choose(i){
   if(o.tag==='best') state.cleared++;
   else if(o.tag==='bad' || o.leak) state.leakLevel++;
   else state.busted++;
+  // 记账：供结算后的「防骗笔记」逐关回顾
+  state.log.push({title:lv.title, kp:lv.kp, tag:o.tag, verdict:o.verdict, myLabel:o.label, desc:o.desc});
   // review
   document.getElementById('r-title').textContent='第 '+(state.level+1)+' 关复盘 · '+lv.title;
   const vd=document.getElementById('r-verdict');
@@ -295,6 +340,62 @@ function endGame(){
   document.getElementById('end-shield').innerHTML='<svg viewBox="0 0 100 100"><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="'+shieldColor+'" opacity=".18"/><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="none" stroke="'+shieldColor+'" stroke-width="4"/><text x="50" y="58" font-size="34" text-anchor="middle" fill="'+shieldColor+'">'+(sc>=70?'✓':'!')+'</text></svg>';
   bumpCount();
   show('s-end');
+}
+
+/* ===== 防骗笔记（错题本） ===== */
+const IDNAME={youth:'青年',mid:'中年',elder:'老年'};
+const BDTEXT={best:'🛡️ 守住',ok:'⚠️ 中招',bad:'💥 泄露'};
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function noteItem(x,showMy){
+  const cls=x.tag==='bad'?'wrong':(x.tag==='ok'?'warn':'');
+  let h='<div class="note-item '+cls+'">';
+  h+='<div class="ttl">'+esc(x.title)+'<span class="badge '+x.tag+'">'+BDTEXT[x.tag]+'</span></div>';
+  if(showMy) h+='<div class="me">我当时选了：<b>'+esc(x.myLabel)+'</b></div>';
+  h+='<div class="kp">📌 '+esc(x.kp)+'</div>';
+  return h+'</div>';
+}
+
+function buildNote(){
+  const d=new Date(), pad=n=>String(n).padStart(2,'0');
+  const dateStr=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const log=state.log||[];
+  const wrong=log.filter(x=>x.tag!=='best');
+  const right=log.filter(x=>x.tag==='best');
+  // 最该记住的一条：优先取"泄露"关，其次"中招"关
+  const hero=log.find(x=>x.tag==='bad')||log.find(x=>x.tag==='ok')||log[0];
+
+  let h='<div class="note-hd"><div class="t">我的防骗笔记</div>'
+      +'<div class="m">'+IDNAME[state.identity]+'线 · '+dateStr+' · 经历了 21 天风险期</div></div>';
+
+  h+='<div class="note-stat">'
+   +'<div class="ns-ok"><div class="n">'+state.cleared+'</div><div class="l">守住</div></div>'
+   +'<div class="ns-bust"><div class="n">'+state.busted+'</div><div class="l">中招</div></div>'
+   +'<div class="ns-leak"><div class="n">'+state.leakLevel+'</div><div class="l">泄露</div></div>'
+   +'</div>';
+
+  if(hero) h+='<div class="note-hero"><div class="k">本局最该记住的一条</div><div class="v">'+esc(hero.kp)+'</div></div>';
+
+  if(wrong.length){
+    h+='<div class="note-sec">⚠️ 需要复习 '+wrong.length+' 条</div>';
+    wrong.forEach(x=>{h+=noteItem(x,true);});
+  }else{
+    h+='<div class="note-empty">🎉 五关全守住，本局没有错题</div>';
+  }
+  if(right.length){
+    h+='<div class="note-sec">✅ 已经守住 '+right.length+' 条</div>';
+    right.forEach(x=>{h+=noteItem(x,false);});
+  }
+
+  h+='<div class="note-ft">重生之我是反诈先锋 · 来自「<span class="brand">写点知识</span>」<br>'
+    +'骗子的话术一直在变，套路从来没变 —— 存下这张，下次先对号</div>';
+  return h;
+}
+
+function openNote(){
+  document.getElementById('note-paper').innerHTML=buildNote();
+  show('s-note');
 }
 
 function restart(){ show('s-identity'); }
