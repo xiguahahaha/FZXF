@@ -118,6 +118,19 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .note-hero{background:linear-gradient(135deg,#1e3a5f,#2c5f8a);color:#fff;border-radius:12px;padding:14px 15px;margin-bottom:18px;}
 .note-hero .k{font-size:11px;opacity:.85;letter-spacing:1px;}
 .note-hero .v{font-size:14.5px;font-weight:700;line-height:1.65;margin-top:6px;}
+/* 笔记里的防骗性格区（只有测过才出现）—— 用浅底深字，保持截图友好 */
+.note-persona{background:#f4f7fb;border:1px solid #dfe7f0;border-left:3px solid var(--lapis2);border-radius:11px;padding:13px 14px;margin-bottom:18px;}
+.note-persona .np-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.note-persona .np-tag{font-size:10.5px;font-weight:800;color:#7b8794;letter-spacing:2px;}
+.note-persona .np-code{font-size:10.5px;font-weight:700;color:#9aa5b1;letter-spacing:1.5px;}
+.note-persona .np-name{font-size:19px;font-weight:900;color:var(--lapis);letter-spacing:.5px;margin-bottom:10px;}
+.note-persona .np-dims{display:flex;flex-wrap:wrap;gap:5px 14px;margin-bottom:11px;}
+.note-persona .np-row{display:flex;align-items:baseline;gap:6px;font-size:12px;}
+.note-persona .np-l{color:#8b96a2;}
+.note-persona .np-v{font-weight:800;color:#2c3e50;}
+.note-persona .np-v i{font-style:normal;font-size:10px;color:#9aa5b1;font-weight:600;margin-left:2px;}
+.note-persona .np-advice{font-size:12.5px;line-height:1.7;color:#3d4a58;background:#fff;border-radius:8px;padding:9px 11px;}
+.note-persona .np-advice b{display:block;color:var(--lapis);font-size:11px;letter-spacing:1px;margin-bottom:4px;}
 .note-empty{text-align:center;padding:8px 4px 14px;font-size:13.5px;color:#4f7d38;font-weight:700;}
 .note-sec{font-size:12.5px;font-weight:800;color:var(--lapis);letter-spacing:1px;margin:0 0 11px;display:flex;align-items:center;gap:7px;}
 .note-sec::after{content:'';flex:1;height:1px;background:#e3e9f0;}
@@ -513,6 +526,8 @@ const PERSONA={
 
 /* ---- 答题状态与流程 ---- */
 let ptState={idx:0, ans:[]};
+// 已完成的性格结果（未测时为 null）。防骗笔记据此决定要不要加性格区。
+let ptResult=null;
 
 function startPTest(){
   ptState={idx:0, ans:[]};
@@ -564,6 +579,7 @@ function scorePT(){
 
 function finishPTest(){
   const p=scorePT();
+  ptResult=p;                 // 存下来供防骗笔记使用（未测时保持 null，笔记里就不渲染性格区）
   renderPersona(p);
   show('s-persona');
 }
@@ -728,6 +744,33 @@ function noteItem(x,showMy){
   return h+'</div>';
 }
 
+/* 防骗笔记里的「防骗性格」区 —— 动态的：
+   只在玩完 12 题性格测试之后才渲染（ptResult 为空整块不出现）。
+   四维只列「你偏向的那一极 + 强度」，并附上该人格的针对性建议。 */
+function buildNotePersona(){
+  if(!ptResult) return '';                     // 没测过 → 不加这一区
+  const info=PERSONA[ptResult.code];
+  if(!info) return '';
+  const dims=[
+    ['信什么','trust',{auth:'权威',kin:'亲缘'}],
+    ['图什么','drive',{gain:'贪利',loss:'避害'}],
+    ['靠什么','mode', {solo:'独断',verify:'求证'}],
+    ['什么时候','pace',{rush:'急躁',delay:'拖延'}]
+  ];
+  let rows='';
+  dims.forEach(([label,key,poles])=>{
+    const sel=poles[ptResult[key]];
+    rows+='<div class="np-row"><span class="np-l">'+label+'</span>'
+        + '<span class="np-v">'+sel+'<i>'+ptResult.strength[key]+'/3</i></span></div>';
+  });
+  return '<div class="note-persona">'
+    +'<div class="np-hd"><span class="np-tag">防骗性格</span><span class="np-code">'+ptResult.code+'</span></div>'
+    +'<div class="np-name">'+esc(info.n)+'</div>'
+    +'<div class="np-dims">'+rows+'</div>'
+    +'<div class="np-advice"><b>针对你的提醒</b>'+esc(info.a)+'</div>'
+    +'</div>';
+}
+
 function buildNote(){
   const d=new Date(), pad=n=>String(n).padStart(2,'0');
   const dateStr=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -748,6 +791,9 @@ function buildNote(){
 
   if(hero) h+='<div class="note-hero"><div class="k">本局最该记住的一条</div><div class="v">'+esc(hero.kp)+'</div></div>';
 
+  // 防骗性格区：只有测过才渲染（ptResult 为 null 时整块不出现，笔记保持原样）
+  h+=buildNotePersona();
+
   if(wrong.length){
     h+='<div class="note-sec">⚠️ 需要复习 '+wrong.length+' 条</div>';
     wrong.forEach(x=>{h+=noteItem(x,true);});
@@ -760,7 +806,10 @@ function buildNote(){
   }
 
   h+='<div class="note-ft">重生之我是反诈先锋 · 来自「<span class="brand">写点知识</span>」<br>'
-    +'骗子的话术一直在变，套路从来没变 —— 存下这张，下次先对号</div>';
+    +(ptResult
+        ? '把这张转给家里人 —— 你的『'+esc(PERSONA[ptResult.code].n)+'』弱点，可能正是他们的强项'
+        : '骗子的话术一直在变，套路从来没变 —— 存下这张，下次先对号')
+    +'</div>';
   return h;
 }
 
