@@ -80,6 +80,13 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .btn.ghost{background:#fff;color:var(--lapis);border:1.5px solid #d5dde7;}
 /* 防骗笔记（错题本）：白底深字，为截图分享优化 */
 .note-tip{background:#fff8e6;border:1px solid #f0d9a0;color:#8a6a1e;font-size:12.5px;line-height:1.6;padding:9px 12px;border-radius:10px;margin-bottom:14px;}
+/* 打败了X%的人：分数分桶统计出的百分位 */
+.beat{background:#fff;border-radius:14px;padding:15px 15px 13px;margin:0 0 16px;text-align:left;box-shadow:0 2px 10px rgba(30,58,95,.07);}
+.beat-main{font-size:14.5px;font-weight:800;color:var(--lapis);line-height:1.6;}
+.beat-main b{color:var(--gold);font-size:19px;}
+.beat-bar{height:9px;background:#e8eef5;border-radius:5px;overflow:hidden;margin:10px 0 7px;position:relative;}
+.beat-fill{height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,var(--lapis2),var(--gold));transition:width .9s cubic-bezier(.22,1,.36,1);}
+.beat-sub{font-size:11.5px;color:#8b96a2;line-height:1.6;}
 .note-paper{background:#fff;border-radius:16px;padding:22px 18px 24px;box-shadow:0 4px 18px rgba(30,58,95,.10);}
 .note-hd{border-bottom:2px solid var(--lapis);padding-bottom:11px;margin-bottom:15px;}
 .note-hd .t{font-size:21px;font-weight:900;color:var(--lapis);letter-spacing:.5px;}
@@ -174,6 +181,11 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div><div class="n" id="st-leak">0</div><div class="l">泄露次数</div></div>
       </div>
       <div class="end-rank" id="end-rank"></div>
+      <div class="beat" id="beat-box" style="display:none">
+        <div class="beat-main" id="beat-main"></div>
+        <div class="beat-bar"><div class="beat-fill" id="beat-fill"></div></div>
+        <div class="beat-sub" id="beat-sub"></div>
+      </div>
       <div class="share-card">
         <div class="big" id="sc-title">反诈先锋</div>
         <div class="mid" id="sc-desc"></div>
@@ -245,6 +257,47 @@ function bumpCount(){
           localStorage.setItem(LKEY, String(loc));
           const rank=document.getElementById('end-rank');
           if(rank) rank.textContent='🔥 你是本机第 '+loc+' 局完成测试（全球统计暂时不可达）'; });
+}
+
+/* ---- 打败了 X% 的人：按分数段分桶统计，前端算百分位（纯前端，无需后端） ----
+   把分数划成 11 段（0-9 / 10-19 / … / 90-99 / 100），每段一个计数 key：b0 b10 b20 … b100。
+   结算时：先把自己 hit 进所在段，再并发 get 全部 11 段，用「低于我的人数 / 总人数」算百分位。
+   写和读共用同一套 key（BUCKETS），避免对不上。 */
+const BUCKETS=[0,10,20,30,40,50,60,70,80,90,100];
+const bucketKey=sc=>'b'+(sc>=100?100:Math.floor(sc/10)*10);
+function computeBeat(sc){
+  const box=document.getElementById('beat-box');
+  if(!box) return;
+  // 1) 把自己计入所在分段（桶不存在时 Abacus 的 hit 会自动创建；失败静默）
+  fetchCount('/hit/'+COUNT_NS+'/'+bucketKey(sc), 6000, ()=>{}, ()=>{});
+  // 2) 并发读回 11 段
+  const got={}; let done=0;
+  const finish=()=>{
+    if(done<BUCKETS.length) return;
+    let lower=0, total=0;
+    BUCKETS.forEach(b=>{
+      const n=got[b];
+      if(n===undefined || n<0) return;    // 该段不可达就跳过，别让一个失败拖垮整体
+      total+=n;
+      if(b<Math.floor(sc/10)*10) lower+=n; // 严格低于我的分段
+    });
+    if(total<=0){ box.style.display='none'; return; }
+    const pct=Math.min(99, Math.max(1, Math.round(lower/total*100)));
+    document.getElementById('beat-main').innerHTML='你打败了 <b>'+pct+'%</b> 的玩家';
+    const sub=document.getElementById('beat-sub');
+    if(pct>=95) sub.textContent='已进入前 5%，这个分数意味着骗子很难从你身上拿到东西。';
+    else if(pct>=80) sub.textContent='已进入前 20%，整体防骗意识在线，个别环节还需再紧一紧。';
+    else if(pct>=50) sub.textContent='刚过半，说明不少人比你更容易上当——但你也还有明显的漏洞。';
+    else if(pct>=20) sub.textContent='多数玩家在这一局比你守得住。回去看看笔记里标红的那几条。';
+    else sub.textContent='这个分数偏低了。别灰心，骗局本就是照着人性的弱点设计的，练过就不一样。';
+    box.style.display='block';
+    setTimeout(()=>{ const f=document.getElementById('beat-fill'); if(f) f.style.width=pct+'%'; }, 60);
+  };
+  BUCKETS.forEach(b=>{
+    fetchCount('/get/'+COUNT_NS+'/'+bucketKey(b), 5000,
+      n=>{ got[b]=n; done++; finish(); },
+      ()=>{ got[b]=-1; done++; finish(); });
+  });
 }
 
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
@@ -345,6 +398,10 @@ function endGame(){
   const shieldColor = sc>=100?'#e8b339':sc>=70?'#2c5f8a':sc>=40?'#e6a23c':'#9b1c1c';
   document.getElementById('end-shield').innerHTML='<svg viewBox="0 0 100 100"><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="'+shieldColor+'" opacity=".18"/><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="none" stroke="'+shieldColor+'" stroke-width="4"/><text x="50" y="58" font-size="34" text-anchor="middle" fill="'+shieldColor+'">'+(sc>=70?'✓':'!')+'</text></svg>';
   bumpCount();
+  // 结算时重置百分位区块，再异步算（避免显示上一局的残留数字）
+  const bb=document.getElementById('beat-box');
+  if(bb){ bb.style.display='none'; document.getElementById('beat-fill').style.width='0'; }
+  computeBeat(sc);
   show('s-end');
 }
 
