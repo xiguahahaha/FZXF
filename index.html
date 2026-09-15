@@ -79,6 +79,22 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .share-card .qr{margin-top:14px;font-size:12px;background:rgba(255,255,255,.15);display:inline-block;padding:6px 12px;border-radius:10px;}
 .btn.ghost{background:#fff;color:var(--lapis);border:1.5px solid #d5dde7;}
 /* 防骗笔记（错题本）：白底深字，为截图分享优化 */
+/* 防骗人格卡：MBTI 式结果页，深色高级感 + 分享友好 */
+.persona-card{background:linear-gradient(160deg,#0f2440 0%,#1e3a5f 45%,#2c5f8a 100%);border-radius:18px;padding:26px 20px 22px;color:#fff;box-shadow:0 10px 30px rgba(15,36,64,.28);}
+.persona-card .pr-top{font-size:11.5px;letter-spacing:3px;opacity:.7;text-align:center;}
+.persona-card .pr-name{font-size:33px;font-weight:900;text-align:center;margin:9px 0 6px;letter-spacing:2px;
+  background:linear-gradient(90deg,#ffd98a,#e8b339,#ffd98a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.persona-card .pr-code{text-align:center;font-size:11.5px;letter-spacing:1.5px;opacity:.75;margin-bottom:16px;}
+.persona-card .pr-desc{font-size:14px;line-height:1.85;opacity:.95;padding:13px 14px;background:rgba(255,255,255,.09);border-radius:11px;border-left:3px solid var(--gold);}
+.pr-dims{margin:17px 0 15px;}
+.pr-dim{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:12px;}
+.pr-dim span{flex:1;text-align:center;padding:6px 4px;border-radius:8px;background:rgba(255,255,255,.08);opacity:.45;transition:.25s;}
+.pr-dim span.on{background:rgba(232,179,57,.95);color:#2a1d00;font-weight:800;opacity:1;}
+.pr-dim .pr-mid{flex:0 0 auto;width:62px;background:none;font-size:11px;opacity:.6;letter-spacing:1px;}
+.persona-card .pr-advice{font-size:13px;line-height:1.85;background:rgba(255,255,255,.09);border-radius:11px;padding:13px 14px;}
+.persona-card .pr-advice b{display:block;color:var(--gold);font-size:12px;letter-spacing:1.5px;margin-bottom:6px;}
+.persona-card .pr-note{margin-top:13px;padding-top:12px;border-top:1px dashed rgba(255,255,255,.22);font-size:11.5px;opacity:.62;line-height:1.7;text-align:center;}
+
 .note-tip{background:#fff8e6;border:1px solid #f0d9a0;color:#8a6a1e;font-size:12.5px;line-height:1.6;padding:9px 12px;border-radius:10px;margin-bottom:14px;}
 /* 打败了X%的人：分数分桶统计出的百分位 */
 .beat{background:#fff;border-radius:14px;padding:15px 15px 13px;margin:0 0 16px;text-align:left;box-shadow:0 2px 10px rgba(30,58,95,.07);}
@@ -191,8 +207,18 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div class="mid" id="sc-desc"></div>
         <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
       </div>
+      <button class="btn" id="btn-persona" onclick="openPersona()">🎭 查看我的防骗人格</button>
       <button class="btn" id="btn-note" onclick="openNote()">📝 生成我的防骗笔记</button>
       <button class="btn ghost" onclick="restart()">↻ 重玩这一世</button>
+    </div>
+  </section>
+
+  <!-- 屏6：防骗人格（16型） -->
+  <section id="s-persona" class="screen">
+    <div class="note-wrap">
+      <div class="note-tip">📸 长按卡片可保存 —— 发出去让朋友也测测，看谁更容易栽</div>
+      <div class="persona-card" id="persona-card"></div>
+      <button class="btn ghost" onclick="show('s-end')">← 返回结算</button>
     </div>
   </section>
 
@@ -298,6 +324,143 @@ function computeBeat(sc){
       n=>{ got[b]=n; done++; finish(); },
       ()=>{ got[b]=-1; done++; finish(); });
   });
+}
+
+/* ===== 防骗人格：四维 × 16 型 =====
+   两个维度靠人工标注（机器判不准，会贴错标签），两个维度靠选项文案自动判定（文案写得明确，判得准）。
+   - trust 信什么：auth=权威型（信官方/工号/证件） / kin=亲缘型（信关系/人情/熟人）
+   - drive 图什么：gain=贪利型（被收益吸引） / loss=避害型（被损失恐惧推动）
+   - mode  靠什么：solo=独断型（自己判断直接动手） / verify=求证型（必须先核实）
+   - pace  什么时候：rush=急躁型（当下就定） / delay=拖延型（先放一放）
+
+   TRUST/DRIVE 表：key 用关卡标题（与 levels.js 的 title 严格一致），值为 'a' 或 'k' / 'g' 或 'l'。
+   未收录的关按兜底规则处理（见 judgePersona），不会报错。 */
+const TRUST_MAP={
+  // 中年线
+  '冒充客服退款':'a','刷单返利':'a','杀猪盘（网恋+投资）':'k','冒充领导/老板转账':'k','虚假征信（屏幕共享）':'a',
+  '冒充公检法':'a','虚假荐股群':'a','百万医疗"到期扣费"':'a','医保卡"异常消费"':'a','中奖先交税':'a',
+  '子女遇险"急救"':'k','保健品会销':'a','信用卡"盗刷"':'a','培训贷兼职':'a','黄昏恋"投资"':'k',
+  '熟人AI换脸借钱':'k','养老公寓"预售"':'a','税务"退税补贴"':'a','虚拟货币"暴富"':'a','低价旅游购物':'a',
+  // 青年线
+  '游戏账号交易（担保钓鱼）':'a','演唱会门票"代抢"':'k','裸聊"交友"敲诈':'k','注销"校园贷"额度':'a',
+  '二手平台"保证金"钓鱼':'a','境外"高薪"招工':'a','航班"退改签"理赔':'a','粉丝应援"集资"':'k',
+  'QQ/微信盗号"借钱"':'k','网贷"低息无抵押"':'a','游戏点券"低价代充"':'a','"寄拍/配音"兼职押金':'a',
+  '出租微信号"跑分"':'a','租房"假房源"':'a','网恋"礼物"杀猪':'k',
+  // 老年线
+  '冒充孙子"出事要钱"':'k','养老金"认证"骗局':'a','民族资产"解冻"':'a','收音机/电视"祖传秘方"卖药':'a',
+  '收藏品"高价回收"':'a','免费体检卖"理疗仪"':'a','冒充"水务局"催缴费':'a','婚介所"找老伴"骗局':'k',
+  '冒充"银行客服"远程操作':'a','电视购物"货到付款"假货':'a','"原始股"认购':'a','银行门口"高息理财"':'a',
+  '"老年大学"报名费':'a','上门"装净水器"收费':'a','保健品"会员退费"':'a'
+};
+const DRIVE_MAP={
+  // 贪利 g / 避害 l
+  '冒充客服退款':'g','刷单返利':'g','杀猪盘（网恋+投资）':'g','冒充领导/老板转账':'l','虚假征信（屏幕共享）':'l',
+  '冒充公检法':'l','虚假荐股群':'g','百万医疗"到期扣费"':'l','医保卡"异常消费"':'l','中奖先交税':'g',
+  '子女遇险"急救"':'l','保健品会销':'g','信用卡"盗刷"':'l','培训贷兼职':'g','黄昏恋"投资"':'g',
+  '熟人AI换脸借钱':'l','养老公寓"预售"':'g','税务"退税补贴"':'g','虚拟货币"暴富"':'g','低价旅游购物':'g',
+  '游戏账号交易（担保钓鱼）':'g','演唱会门票"代抢"':'g','裸聊"交友"敲诈':'l','注销"校园贷"额度':'l',
+  '二手平台"保证金"钓鱼':'l','境外"高薪"招工':'g','航班"退改签"理赔':'l','粉丝应援"集资"':'g',
+  'QQ/微信盗号"借钱"':'l','网贷"低息无抵押"':'g','游戏点券"低价代充"':'g','"寄拍/配音"兼职押金':'g',
+  '出租微信号"跑分"':'g','租房"假房源"':'g','网恋"礼物"杀猪':'g',
+  '冒充孙子"出事要钱"':'l','养老金"认证"骗局':'l','民族资产"解冻"':'g','收音机/电视"祖传秘方"卖药':'g',
+  '收藏品"高价回收"':'g','免费体检卖"理疗仪"':'l','冒充"水务局"催缴费':'l','婚介所"找老伴"骗局':'g',
+  '冒充"银行客服"远程操作':'l','电视购物"货到付款"假货':'g','"原始股"认购':'g','银行门口"高息理财"':'g',
+  '"老年大学"报名费':'g','上门"装净水器"收费':'l','保健品"会员退费"':'g'
+};
+
+// mode/pace 从选项文案判定（比关键词更稳：直接看玩家实际选的那条）
+const RE_VERIFY=/核实|确认|自己|官方|查|比对|当面|挂断|拒绝|不理|拉黑|咨询|报警|原号|官网|线下|观望|看看|试试|先不|拖|明天|再说|考虑/;
+const RE_SOLO=/直接|马上|立刻|发过去|转过去|转了|交了|汇了|充|垫|扫码|下载|按他|照做|配合|开户/;
+const RE_RUSH=/怕|催|急|赶紧|今天|限时|最后|名额|抓紧|尽快|别耽误|心动|怕抢不到|病急/;
+
+function judgePersona(){
+  // 汇总本局所有选择，得出四维倾向。只统计"没守住"的关（选对了说明该维度上防住了，
+  // 不构成弱点；否则全对的玩家也会被贴标签，不合理）。
+  const wrong=(state.log||[]).filter(x=>x.tag!=='best');
+  const t={a:0,k:0}, d={g:0,l:0}, m={solo:0,verify:0}, p={rush:0,delay:0};
+  const add=(o,k)=>{ if(o[k]!==undefined) o[k]++; };
+  wrong.forEach(x=>{
+    add(t, TRUST_MAP[x.title]==='k'?'k':'a');       // 未收录按权威兜底
+    add(d, DRIVE_MAP[x.title]==='l'?'l':'g');       // 未收录按贪利兜底
+    const txt=(x.myLabel||'')+' '+(x.desc||'');
+    const v=RE_VERIFY.test(txt)?1:0, s=RE_SOLO.test(txt)?1:0;
+    if(s>v) m.solo++; else if(v>s) m.verify++;      // 打平则不计入
+    if(RE_RUSH.test(txt)) p.rush++; else p.delay++;
+  });
+  // 五关全守住：不贴任何弱点标签（给满分玩家贴"急着自证清白"是错的）
+  if(wrong.length===0){
+    return {code:'PERFECT',trust:'auth',drive:'gain',mode:'verify',pace:'delay',
+            wrongCount:0, perfect:true, score:{t,d,m,p}};
+  }
+  // 平局时按"更保守"的方向落，避免随机跳变
+  const trust=t.k>t.a?'kin':'auth';
+  const drive=d.l>d.g?'loss':'gain';
+  const mode =m.solo>m.verify?'solo':(m.verify>m.solo?'verify':'solo');
+  const pace =p.rush>p.delay?'rush':'delay';
+  // 类型码用显式映射（不靠字符串首字母，避免日后改词导致码错位）
+  const CODE={auth:'A',kin:'K',gain:'G',loss:'L',solo:'S',verify:'V',rush:'R',delay:'D'};
+  const code=[trust,drive,mode,pace].map(k=>CODE[k]).join('');
+  return {code, trust,drive,mode,pace, wrongCount:wrong.length, perfect:false, score:{t,d,m,p}};
+}
+
+// 16 型人格表：类型名 + 一句话画像 + 针对性建议
+const PERSONA={
+  AGSD:{n:'自证清白侠',d:'权威说你有事，你第一反应是"我得赶紧证明自己没问题"——这正是骗子的开关。',a:'真正公检法不会电话办案、不会要你转钱自证。下次遇到"你涉嫌"，先挂断，用自己查到的官方号码回拨。'},
+  AGSR:{n:'秒速跟单客',d:'一看到"名额有限、马上开抢"就手快——你怕的不是被骗，是怕错过。',a:'把"错过"和"损失"分开算：错过一次机会最多遗憾，把钱转出去是实打实的损失。'},
+  AGVD:{n:'谨慎追利人',d:'你会核实、会观望，但"能赚一笔"的念头一旦起来就压不住，核实只是走个过场。',a:'你缺的不是谨慎，是底线价：给自己定死"不熟的投资一分不投"，这条线不谈条件。'},
+  AGVR:{n:'慢热的猎手',d:'你不急，也会查，但查着查着就被那笔预期收益说服了——慢，但没改变方向。',a:'核实的作用是"一票否决"，不是"再确认一下"。查出疑点就该停，而不是继续找理由。'},
+  ALSD:{n:'惊吓即动者',d:'一被吓到就马上动手止损，而骗子最爱制造"来不及了"。',a:'所有"立刻处理否则后果严重"的通知，本质都是要你在恐惧里做决定。缓一天，事情几乎都能在官方渠道办好。'},
+  ALSR:{n:'救火队员',d:'哪里冒烟你冲哪里，骗子一喊"出事"你就上路——行动力满分，方向是错的。',a:'先问"这消息谁给我的"，再问"我该找谁核"。把行动力留给核实，别留给转账。'},
+  ALVD:{n:'稳得住的人',d:'你会核实，不太冲动，弱点是在压力下容易反复打开那些链接、反复接触对方。',a:'不接触就是最好的防守。拉黑、挂断、退出群，比"再看一眼"安全一百倍。'},
+  ALVR:{n:'老练的观棋者',d:'你不慌不忙，凡事要查证，是这 16 型里最难骗的之一。',a:'保持这颗"不着急"的心，并把它传给家里容易急的人——他们比你更需要这套节奏。'},
+  KGSD:{n:'亲情刺客的猎物',d:'熟人一开口你就松了防备，"是自家人"能绕过你所有的警觉。',a:'骗子最先偷的就是关系和称呼。亲人开口要钱，也要走"另一条路"确认：打他原号，或问只有你俩知道的事。'},
+  KGSR:{n:'仗义急先锋',d:'朋友有难你两肋插刀，还怕动作慢了耽误事——义气和速度都被骗子利用了。',a:'真正的急事不怕多花两分钟确认。你越快，骗子越高兴。'},
+  KGVD:{n:'重情但会留手',d:'重感情、也会核实，但对方一旦打感情牌、把话题拉到"你不信任我"，你就会让步。',a:'核实是对关系负责，不是不信任。把"我必须确认一下"说出口，真朋友不会因此翻脸。'},
+  KGVR:{n:'有分寸的暖人',d:'你既重感情又讲方法，只在小概率上栽跟头。',a:'继续保持"关系归关系、转账归转账"，这两件事本就不该混在一起。'},
+  KLSD:{n:'护家心切者',d:'家人一出"事"，你会立刻扑上去——骗子就伪装成你最放不下的那个人。',a:'越是"家人出事"，越要走原号回拨。先护住钱，才能真正护住家人。'},
+  KLSR:{n:'火线救援型',d:'亲人求救的信号让你瞬间失去判断，顾不上想真假。',a:'给家里立一条规矩：任何"亲人出事要钱"，先打通本人电话，打不通就找第二个亲属问。'},
+  KLVD:{n:'理智的看护人',d:'你重亲情也懂核实，弱点是被"亲情"这条线反复拉扯，容易放弃防守。',a:'你的防线没问题，需要的是果断——该挂断就挂断，心软留给家人，不能留给骗子。'},
+  KLVR:{n:'家族守门人',d:'重感情、有方法、能扛住压力，是全家最该依赖的那个。',a:'把你这套判断方式教给长辈，比替他们转账有用得多。'}
+};
+
+function openPersona(){
+  const p=judgePersona();
+  const el=document.getElementById('persona-card');
+  const full={
+    trust:{auth:'权威型',kin:'亲缘型'}, drive:{gain:'贪利型',loss:'避害型'},
+    mode:{solo:'独断型',verify:'求证型'}, pace:{rush:'急躁型',delay:'拖延型'}
+  };
+  // 五关全守住：不贴弱点标签，给一个专属结果
+  if(p.perfect){
+    el.innerHTML=
+      '<div class="pr-top">你的防骗人格</div>'+
+      '<div class="pr-name">无懈可击</div>'+
+      '<div class="pr-code">PERFECT · 五关全守 · 零泄露</div>'+
+      '<div class="pr-desc">这一局你没给骗子任何机会：该核实的核实了，该挂断的挂断了，该攥紧的验证码一个没松手。</div>'+
+      '<div class="pr-advice"><b>给你的提醒</b>你已经是这条线里最难骗的那一类人。真正的风险不只在你自己身上——把今天这套判断方式讲给家里最容易着急的人听，比你自己再测十次都有用。</div>'+
+      '<div class="pr-note">本局没有暴露任何弱点，所以不给你贴标签。想看看自己的软肋在哪，可以换一条身份线再试试。</div>';
+    show('s-persona');
+    return;
+  }
+  const info=PERSONA[p.code];
+  const dimRow=(label,left,right,val)=>
+    '<div class="pr-dim"><span class="'+(val===left.k?'on':'')+'">'+left.n+'</span>'+
+    '<span class="pr-mid">'+label+'</span>'+
+    '<span class="'+(val===right.k?'on':'')+'">'+right.n+'</span></div>';
+  el.innerHTML=
+    '<div class="pr-top">你的防骗人格</div>'+
+    '<div class="pr-name">'+info.n+'</div>'+
+    '<div class="pr-code">'+p.code+' · '+full.trust[p.trust]+' / '+full.drive[p.drive]+' / '+full.mode[p.mode]+' / '+full.pace[p.pace]+'</div>'+
+    '<div class="pr-desc">'+info.d+'</div>'+
+    '<div class="pr-dims">'+
+      dimRow('信什么',{n:'权威',k:'auth'},{n:'亲缘',k:'kin'},p.trust)+
+      dimRow('图什么',{n:'贪利',k:'gain'},{n:'避害',k:'loss'},p.drive)+
+      dimRow('靠什么',{n:'独断',k:'solo'},{n:'求证',k:'verify'},p.mode)+
+      dimRow('什么时候',{n:'急躁',k:'rush'},{n:'拖延',k:'delay'},p.pace)+
+    '</div>'+
+    '<div class="pr-advice"><b>给你的提醒</b>'+info.a+'</div>'+
+    '<div class="pr-note">基于本局 '+p.wrongCount+' 处失守判断，不是性格测试，只是一面镜子。</div>';
+  show('s-persona');
 }
 
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
