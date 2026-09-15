@@ -39,7 +39,10 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .bubble.scam{background:var(--scam-bubble);float:left;border-top-left-radius:3px;box-shadow:0 1px 2px rgba(0,0,0,.06);}
 .bubble.me{background:var(--green-bubble);float:right;border-top-right-radius:3px;}
 .bubble.sys{float:none;background:#fff7e6;color:#a85e00;max-width:100%;font-size:13px;border-left:3px solid var(--warn);text-align:left;}
-.bubble.leak{float:left;background:#fde2e2;color:#9b1c1c;border-top-left-radius:3px;font-size:14px;border-left:3px solid var(--bad);}
+/* 说明：泄露后的"骗子补刀"气泡样式已随功能一并移除（会剧透，见 renderLevel 注释）。
+   关卡数据 levels.js 里的 leakExtra 字段仍保留，将来若要改为"结算后揭晓"可直接复用：
+   .bubble.leak{float:left;background:#fde2e2;color:#9b1c1c;border-top-left-radius:3px;font-size:14px;border-left:3px solid var(--bad);}
+*/
 .clear{clear:both;}
 /* 选项 */
 .options{display:flex;flex-direction:column;gap:10px;}
@@ -269,7 +272,10 @@ function renderLevel(){
   // chat
   let html='';
   lv.chat.forEach(b=>{html+='<div class="bubble '+b.who+'">'+b.text+'</div>';});
-  if(state.leakLevel>0 && lv.leakExtra){html+='<div class="clear"></div><div class="bubble leak">'+lv.leakExtra+'</div>';}
+  // 注意：这里刻意不渲染 lv.leakExtra。
+  // 一旦泄露，后面几关都弹"骗子补刀"会剧透——它等于提前告诉玩家"这是骗局、你的信息泄了"，
+  // 玩家不用自己判断就能选对。真实世界里骗子也不会先声明自己在补刀。
+  // 玩家只能靠"对方怎么知道我的私事"这个异常自行警觉。关卡数据里的 leakExtra 保留备用。
   html+='<div class="clear"></div>';
   document.getElementById('chat').innerHTML=html;
   // options
