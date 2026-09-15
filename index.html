@@ -3,7 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>重生之我是反诈先锋</title>
+<title>反诈先锋 - 21天防骗挑战</title>
+<meta name="description" content="抽一张身份牌，替爸妈先走一遍这21天。5个真实诈骗场景，看看你能守住几分。中老年/青年/老年三条身份线，情景模拟，非官方产品。">
+<meta name="keywords" content="反诈,防骗,反诈游戏,防骗测试,老年人防骗,养老诈骗,反诈先锋,诈骗话术,家庭防骗">
+<meta name="author" content="写点知识">
+<meta name="robots" content="index,follow">
+
+<!-- 社交平台分享卡片（微信/微博/X/Facebook 抓取用） -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="反诈先锋">
+<meta property="og:title" content="爸妈的手机里，藏着 5 个骗局">
+<meta property="og:description" content="抽一张身份牌，替爸妈先走一遍这21天。5个真实诈骗场景，看看你能守住几分。">
+<meta property="og:url" content="https://xiguahahaha.github.io/FZXF/">
+<meta property="og:image" content="https://xiguahahaha.github.io/FZXF/assets/share-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="爸妈的手机里，藏着 5 个骗局">
+<meta name="twitter:description" content="抽一张身份牌，替爸妈先走一遍这21天。5个真实诈骗场景，看看你能守住几分。">
+<meta name="twitter:image" content="https://xiguahahaha.github.io/FZXF/assets/share-cover.png">
+<meta name="theme-color" content="#1e3a5f">
 <style>
 :root{
   --lapis:#1e3a5f; --lapis2:#2c5f8a; --lapis-bg:#eef3f9;
@@ -77,6 +97,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .share-card .big{font-size:30px;font-weight:900;letter-spacing:1px;}
 .share-card .mid{font-size:14px;opacity:.92;margin-top:8px;line-height:1.7;}
 .share-card .qr{margin-top:14px;font-size:12px;background:rgba(255,255,255,.15);display:inline-block;padding:6px 12px;border-radius:10px;}
+.disclaimer{font-size:11px;color:#9aa5b1;line-height:1.6;text-align:center;margin:14px 0 4px;padding:0 6px;}
 .btn.ghost{background:#fff;color:var(--lapis);border:1.5px solid #d5dde7;}
 /* 防骗笔记（错题本）：白底深字，为截图分享优化 */
 /* 防骗人格卡：MBTI 式结果页，深色高级感 + 分享友好 */
@@ -178,8 +199,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 
   <!-- 屏1：身份牌 -->
   <section id="s-identity" class="screen active">
-    <div class="h-title">重生之我是反诈先锋</div>
-    <div class="h-sub">这一世，别再让养老钱打水漂<br>抽一张身份牌，回到被骗之前</div>
+    <div class="h-title">反诈先锋</div>
+    <div class="h-sub">抽一张身份牌，替爸妈先走一遍这 21 天<br>骗子的话术一直在变，套路从来没变</div>
     <div class="cards">
       <div class="card mid" onclick="startLine('mid')">
         <img src="assets/mid.png" alt="中年人">
@@ -250,7 +271,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
       </div>
       <button class="btn" id="btn-note" onclick="openNote()">📝 生成我的防骗笔记</button>
-      <button class="btn ghost" onclick="restart()">↻ 重玩这一世</button>
+      <button class="btn ghost" onclick="restart()">↻ 再玩一局</button>
+      <div class="disclaimer">本游戏为情景模拟，「写点知识」出品，非官方产品。文中金额与情节均为虚构设定。</div>
     </div>
   </section>
 
@@ -715,9 +737,9 @@ function endGame(){
   document.getElementById('st-clear').textContent=state.cleared;
   document.getElementById('st-bust').textContent=state.busted;
   document.getElementById('st-leak').textContent=state.leakLevel;
-  document.getElementById('sc-title').textContent=title;
+  document.getElementById('sc-title').textContent='爸妈的手机里，藏着 5 个骗局';
   const keepLine = state.identity==='youth'?'守住钱包，从练手开始。':state.identity==='elder'?'守住棺材本，从练手开始。':'守住养老钱，从练手开始。';
-  document.getElementById('sc-desc').textContent=desc+' '+keepLine;
+  document.getElementById('sc-desc').textContent=title+' · '+sc+'分 · '+desc+' '+keepLine;
   // shield svg
   const shieldColor = sc>=100?'#e8b339':sc>=70?'#2c5f8a':sc>=40?'#e6a23c':'#9b1c1c';
   document.getElementById('end-shield').innerHTML='<svg viewBox="0 0 100 100"><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="'+shieldColor+'" opacity=".18"/><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="none" stroke="'+shieldColor+'" stroke-width="4"/><text x="50" y="58" font-size="34" text-anchor="middle" fill="'+shieldColor+'">'+(sc>=70?'✓':'!')+'</text></svg>';
@@ -805,7 +827,7 @@ function buildNote(){
     right.forEach(x=>{h+=noteItem(x,false);});
   }
 
-  h+='<div class="note-ft">重生之我是反诈先锋 · 来自「<span class="brand">写点知识</span>」<br>'
+  h+='<div class="note-ft">反诈先锋 · 来自「<span class="brand">写点知识</span>」<br>'
     +(ptResult
         ? '把这张转给家里人 —— 你的『'+esc(PERSONA[ptResult.code].n)+'』弱点，可能正是他们的强项'
         : '骗子的话术一直在变，套路从来没变 —— 存下这张，下次先对号')
