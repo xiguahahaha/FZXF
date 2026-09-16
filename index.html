@@ -233,7 +233,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
     </div>
     <div class="hint">👨 中年 20 关 · 🧑 青年 15 关 · 👴 老年 15 关 · 每局抽 5 关（中老年互掺 1 关）</div>
     <div class="stats-line">🔥 已有 <b id="visit-num">…</b> 人次完成测试</div>
-    <button class="btn ghost" id="btn-pt-home" onclick="startPTest()" style="margin-top:14px">🧭 不玩游戏，直接测防骗性格（12 题）</button>
+    <button class="btn ghost" id="btn-pt-home" onclick="startPTest('s-identity')" style="margin-top:14px">🧭 不玩游戏，直接测防骗性格（12 题）</button>
   </section>
 
   <!-- 屏2：剧情 -->
@@ -280,7 +280,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div class="pt-box-top">防骗性格</div>
         <div class="pt-box-body">
           <div class="pt-box-txt" id="pt-box-txt">12 道情境题，测你的防骗性格。和上面的游戏成绩分开算。</div>
-          <button class="btn pt-btn" id="btn-pt-start" onclick="startPTest()">开始测试 →</button>
+          <button class="btn pt-btn" id="btn-pt-start" onclick="startPTest('s-end')">开始测试 →</button>
         </div>
       </div>
       <div class="beat" id="beat-box" style="display:none">
@@ -308,6 +308,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
       </div>
       <div class="ptest-q" id="pt-q"></div>
       <div class="ptest-opts" id="pt-opts"></div>
+      <button class="btn ghost" id="btn-pt-prev" onclick="prevPQuestion()" style="margin-top:14px;display:none">← 上一题</button>
     </div>
   </section>
 
@@ -577,9 +578,13 @@ const PERSONA={
 let ptState={idx:0, ans:[]};
 // 已完成的性格结果（未测时为 null）。防骗笔记据此决定要不要加性格区。
 let ptResult=null;
+// 这一轮测验是从哪进来的（首页 / 结局页）。决定测完返回回哪、以及返回按钮怎么写。
+let ptOrigin='s-identity';
 
-function startPTest(){
+function startPTest(origin){
   ptState={idx:0, ans:[]};
+  ptOrigin = origin || 's-identity';
+  pushNav(ptOrigin);      // 先压一层：从任意一题返回都回到进来的那一屏
   show('s-ptest');
   renderPQuestion();
 }
@@ -594,6 +599,9 @@ function renderPQuestion(){
   document.getElementById('pt-opts').innerHTML=item.opts.map((o,j)=>
     '<button class="ptest-opt" onclick="answerP('+j+')"><span class="k">'+KEYS[j]+'</span>'+esc(o.t)+'</button>'
   ).join('');
+  // 第 1 题没什么可退的，藏掉「上一题」
+  const bk=document.getElementById('btn-pt-prev');
+  if(bk) bk.style.display = i>0 ? 'inline-block' : 'none';
 }
 
 function answerP(j){
@@ -602,6 +610,15 @@ function answerP(j){
   ptState.idx++;
   if(ptState.idx < PTEST.length){ renderPQuestion(); }
   else { finishPTest(); }
+}
+
+/* 站内「上一题」：浏览器返回只负责退一层（＝退出测验），测验内部的回退靠这个按钮。
+   刻意不用 history 实现——一次测验堆十几条历史会让返回体验很乱。 */
+function prevPQuestion(){
+  if(ptState.idx<=0) return;
+  ptState.idx--;
+  ptState.ans.length=ptState.idx;   // 连带丢掉这题之后的作答，重答会覆盖
+  renderPQuestion();
 }
 
 // 四维各选出现次数更多的一极；打平按更保守（auth/gain/verify/delay）落，保证结果稳定不跳变
@@ -630,8 +647,14 @@ function finishPTest(){
   const p=scorePT();
   ptResult=p;                 // 存下来供防骗笔记使用（未测时保持 null，笔记里就不渲染性格区）
   renderPersona(p);
+  // 结果页的返回目标应该是「结局页」。若测验是从首页进的，当前这层记的返回目标是首页，
+  // 得再压一层把返回目标改成结局页；若本来就从结局页进的，现行记录已经对了，不用动。
+  if(ptOrigin!=='s-end') pushNav('s-end');
   show('s-persona');
 }
+
+/* 从结局页的「看卡片」进结果页：单独压一层，返回时回到结局页 */
+function openPersona(){ pushNav('s-end'); show('s-persona'); }
 
 /* ---- 结果卡片 ---- */
 function personaCardHTML(p){
@@ -666,7 +689,7 @@ function renderPersona(p){
     box.querySelector('.pt-box-body').innerHTML=
       '<div class="pt-box-txt"><b>'+esc(info.n)+'</b><br><span style="font-size:12px;color:#8b96a2">'+p.code+
       ' · 点这里看完整卡片</span></div>'+
-      '<button class="btn pt-btn" onclick="show(\'s-persona\')">看卡片 →</button>';
+      '<button class="btn pt-btn" onclick="openPersona()">看卡片 →</button>';
   }
   // 返回按钮措辞随状态变：没玩过游戏时结局页没有成绩块，写「返回结算」会误导
   const pb=document.getElementById('btn-pt-back');
@@ -674,9 +697,32 @@ function renderPersona(p){
 }
 
 /* ---- 首页直接测（不玩游戏也能测） ---- */
-function startPTestFromHome(){ startPTest(); }
+function startPTestFromHome(){ startPTest('s-identity'); }
 
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='s-end') syncEndEmpty();   // 每次进结局页都同步空状态（含浏览器返回进来的）
+  window.scrollTo(0,0);
+}
+
+/* ---- 站内返回：浏览器后退 / 安卓侧滑返回 ----
+   换屏只改 active 类、不写浏览器历史，所以安卓侧滑返回会把整个页面退出去，而不是退上一层。
+   做法：往更深一层走时压一条 history，并记下「这一层是哪一屏」；返回时由 popstate 还原。
+   同层切换（关卡↔复盘、复盘→下一关、→结算）**不压条目** —— 所以连玩 5 关只占 1 条历史，
+   从任意一关返回都是回首页，不会退到已经答过的关（退回去就会变成重复计分）。 */
+const backStack=[];   // 下标 j = 第 j 层历史；存该层是哪一屏，返回时直接查
+function pushNav(backTarget){
+  backStack.push({t:backTarget});
+  history.pushState({n:backStack.length},'');
+}
+window.addEventListener('popstate',function(e){
+  // e.state 缺失说明退到了最初那条（页面刚打开时的状态）
+  const D=(e.state && typeof e.state.n==='number') ? e.state.n : 0;
+  const t=backStack[D];
+  backStack.length=D;            // 丢掉更深的记录，避免返回与历史错位
+  show(t ? t.t : 's-identity');  // 查不到就是最初那条 → 回首页
+});
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',1800);}
 
 function startLine(id){
@@ -691,6 +737,7 @@ function startLine(id){
   }
   shuffle(picks); // 掺入的关打乱到 5 关中任意位置
   state={identity:id, level:0, leakLevel:0, cleared:0, busted:0, log:[], playlist: picks.map((lv,i)=>({...lv, day:days[i]}))};
+  pushNav('s-identity');   // 本局只占 1 条历史：从任意一关返回都回首页
   renderLevel();
 }
 
@@ -725,6 +772,8 @@ const VSUB ={safe:'成功守住',risk:'选错了，但没全错',hit:'全错，�
 function choose(i){
   const lv=state.playlist[state.level];
   const o=currentOpts[i];
+  // 兜底：这一关已经答过就不再计分（防连点，也防将来万一能退回已答的关）
+  if(!lv || !o || state.log.length > state.level) return;
   // 三档互斥：best=守住 / ok=中招(选错但没全错) / bad=泄露(全错的那种)
   if(o.tag==='best') state.cleared++;
   else if(o.tag==='bad' || o.leak) state.leakLevel++;
@@ -869,10 +918,16 @@ function buildNote(){
 
 function openNote(){
   document.getElementById('note-paper').innerHTML=buildNote();
+  pushNav('s-end');
   show('s-note');
 }
 
-function restart(){ show('s-identity'); }
+/* 再玩一局：把本局压的历史一次性退掉再回首页。
+   若直接 show('s-identity')，历史还停在深层，之后侧滑返回会退到已经结束的那一局。 */
+function restart(){
+  if(backStack.length){ history.go(-backStack.length); }
+  else { show('s-identity'); }
+}
 
 /* 结局页空状态开关：没玩过游戏时给 .end-wrap 挂 no-game，藏掉所有本局成绩块。
    每次进入结局页都要调一次（别只依赖 endGame），因为性格/笔记页都可能直接跳回来。 */
@@ -880,8 +935,12 @@ function syncEndEmpty(){
   const w=document.getElementById('end-wrap');
   if(w) w.classList.toggle('no-game', !hasPlayed);
 }
-/* 性格/笔记页的「返回」统一走这里，保证挂上正确的空状态 */
-function backToEnd(){ syncEndEmpty(); show('s-end'); }
+/* 性格/笔记页的「返回」：交给浏览器后退，让历史栈和界面保持同步。
+   （show('s-end') 内部已经会同步空状态，这里不用再调 syncEndEmpty） */
+function backToEnd(){
+  if(backStack.length){ history.back(); }
+  else { show('s-end'); }
+}
 
 // 读取历史最高分（可选展示，预留）
 try{ const best=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}'); }catch(e){}
