@@ -231,7 +231,6 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <h3>老年人</h3><p>守住棺材本</p>
       </div>
     </div>
-    <div class="hint">👨 中年 20 关 · 🧑 青年 15 关 · 👴 老年 15 关 · 每局抽 5 关（中老年互掺 1 关）</div>
     <div class="stats-line">🔥 已有 <b id="visit-num">…</b> 人次完成测试</div>
     <button class="btn ghost" id="btn-pt-home" onclick="startPTest('s-identity')" style="margin-top:14px">🧭 不玩游戏，直接测防骗性格（12 题）</button>
   </section>
@@ -262,8 +261,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
       <div class="end-empty" id="end-empty">
         <div class="ee-icon">🕵️</div>
         <div class="ee-title">这一局还没开始</div>
-        <div class="ee-sub">性格测完了，但还没有这一局的防骗分。<br>抽一张身份牌玩满 5 关，才有成绩和防骗笔记。</div>
-        <button class="btn" onclick="restart()">▶ 现在玩一局（5 关）</button>
+        <div class="ee-sub">性格测完了，但还没有这一局的防骗分。<br>抽一张身份牌玩满 <span id="ee-round-1">6</span> 关，才有成绩和防骗笔记。</div>
+        <button class="btn" onclick="restart()">▶ 现在玩一局（<span id="ee-round-2">6</span> 关）</button>
       </div>
       <div class="shield" id="end-shield"></div>
       <div class="end-title" id="end-title"></div>
@@ -430,7 +429,7 @@ function computeBeat(sc){
 }
 
 /* ===== 防骗性格测试：四维 × 16 型 =====
-   ⚠️ 这套测试是【独立固定题库】，不依赖本局抽到哪 5 关。
+   ⚠️ 这套测试是【独立固定题库】，不依赖本局抽到哪几关。
    早期版本用「本局失守的关」判性格，导致同一个人每次抽关不同、结果就不同，
    且 5 题信息量太少。现在改成 12 道固定情境题，四维各 3 题，结果稳定可复现。
 
@@ -709,7 +708,7 @@ function show(id){
 /* ---- 站内返回：浏览器后退 / 安卓侧滑返回 ----
    换屏只改 active 类、不写浏览器历史，所以安卓侧滑返回会把整个页面退出去，而不是退上一层。
    做法：往更深一层走时压一条 history，并记下「这一层是哪一屏」；返回时由 popstate 还原。
-   同层切换（关卡↔复盘、复盘→下一关、→结算）**不压条目** —— 所以连玩 5 关只占 1 条历史，
+   同层切换（关卡↔复盘、复盘→下一关、→结算）**不压条目** —— 所以连玩一整局只占 1 条历史，
    从任意一关返回都是回首页，不会退到已经答过的关（退回去就会变成重复计分）。 */
 const backStack=[];   // 下标 j = 第 j 层历史；存该层是哪一屏，返回时直接查
 function pushNav(backTarget){
@@ -725,17 +724,21 @@ window.addEventListener('popstate',function(e){
 });
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',1800);}
 
+/* 每局关数。改这一个数字即可 —— 抽关、计分归一化、结算文案都跟着它走。
+   ⚠️ 同时要保证 days 数组长度一致（下面 startLine 里）。 */
+const ROUND=6;
+
 function startLine(id){
-  const days=[3,7,11,15,19];
+  const days=[3,7,11,15,18,21];   // 6 个时间点，最后一天正好落在 21 天期限上
   let picks;
-  if(id==='mid' && LINE.elder){        // 中年局：本线 4 关 + 老年线掺 1 关
-    picks = shuffle([...LINE.mid]).slice(0,4).concat(shuffle([...LINE.elder]).slice(0,1));
-  }else if(id==='elder' && LINE.mid){  // 老年局：本线 4 关 + 中年线掺 1 关
-    picks = shuffle([...LINE.elder]).slice(0,4).concat(shuffle([...LINE.mid]).slice(0,1));
-  }else{                               // 青年局/兜底：纯本线抽 5 关
-    picks = shuffle([...(LINE[id]||LINE.mid)]).slice(0,5);
+  if(id==='mid' && LINE.elder){        // 中年局：本线 5 关 + 老年线掺 1 关
+    picks = shuffle([...LINE.mid]).slice(0,ROUND-1).concat(shuffle([...LINE.elder]).slice(0,1));
+  }else if(id==='elder' && LINE.mid){  // 老年局：本线 5 关 + 中年线掺 1 关
+    picks = shuffle([...LINE.elder]).slice(0,ROUND-1).concat(shuffle([...LINE.mid]).slice(0,1));
+  }else{                               // 青年局/兜底：纯本线抽 ROUND 关
+    picks = shuffle([...(LINE[id]||LINE.mid)]).slice(0,ROUND);
   }
-  shuffle(picks); // 掺入的关打乱到 5 关中任意位置
+  shuffle(picks); // 掺入的关打乱到本局各关中任意位置
   state={identity:id, level:0, leakLevel:0, cleared:0, busted:0, log:[], playlist: picks.map((lv,i)=>({...lv, day:days[i]}))};
   pushNav('s-identity');   // 本局只占 1 条历史：从任意一关返回都回首页
   renderLevel();
@@ -797,11 +800,14 @@ function nextLevel(){
 }
 
 function endGame(){
-  // 守住 +20 / 中招 -10 / 泄露 -25（全错最重，满分 100 = 五关全守）
-  const score = state.cleared*20 - state.busted*10 - state.leakLevel*25;
-  const sc = Math.max(0, score);
+  // 单关权重：守住 +20 / 中招 -10 / 泄露 -25（全错最重）
+  // 再按「本局满分 = 关数 × 20」归一化成 100 分制 —— 这样以后调整每局关数时，
+  // 分数体系、等级门槛、百分位那套 0~100 分桶都不用跟着改。
+  const total = state.playlist.length || ROUND;
+  const raw = state.cleared*20 - state.busted*10 - state.leakLevel*25;
+  const sc = Math.max(0, Math.round(raw / (total*20) * 100));
   let title, color, desc;
-  if(sc>=100){title='五关全守住';color='var(--gold)';desc='零泄露，骗子没拿到任何可用信息。';}
+  if(sc>=100){title=total+'关全守住';color='var(--gold)';desc='零泄露，骗子没拿到任何可用信息。';}
   else if(sc>=70){title='守住了大部分';color='var(--lapis2)';desc='有中招，但关键信息没外流。';}
   else if(sc>=40){title='有失守';color='var(--warn)';desc='踩了坑。信息一旦外流，后续骗局会精准得多。';}
   else {title='失守较多';color='var(--bad)';desc='这局骗子拿到了不少东西，看下面的复盘点一下漏在哪。';}
@@ -901,7 +907,7 @@ function buildNote(){
     h+='<div class="note-sec">⚠️ 需要复习 '+wrong.length+' 条</div>';
     wrong.forEach(x=>{h+=noteItem(x,true);});
   }else{
-    h+='<div class="note-empty">🎉 五关全守住，本局没有错题</div>';
+    h+='<div class="note-empty">🎉 '+state.log.length+' 关全守住，本局没有错题</div>';
   }
   if(right.length){
     h+='<div class="note-sec">✅ 已经守住 '+right.length+' 条</div>';
@@ -944,6 +950,11 @@ function backToEnd(){
 
 // 读取历史最高分（可选展示，预留）
 try{ const best=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}'); }catch(e){}
+// 结局页空状态里的关数跟着 ROUND 走（HTML 里写的是占位值，避免两处写死后不一致）
+['ee-round-1','ee-round-2'].forEach(function(id){
+  const el=document.getElementById(id);
+  if(el) el.textContent=ROUND;
+});
 // 页面加载即刷新全球人次显示
 initCount();
 </script>
