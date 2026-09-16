@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>反诈先锋 - 21天防骗挑战</title>
-<meta name="description" content="抽一张身份牌，6个真实骗局，你能替他们挡住几个？中老年/青年/老年三条身份线，情景模拟，非官方产品。">
+<meta name="description" content="抽一张身份牌，替爸妈先走一遍这21天。6个真实骗局，你能替他们挡住几个？中老年/青年/老年三条身份线，情景模拟，非官方产品。">
 <meta name="keywords" content="反诈,防骗,反诈游戏,防骗测试,老年人防骗,养老诈骗,反诈先锋,诈骗话术,家庭防骗">
 <meta name="author" content="写点知识">
 <meta name="robots" content="index,follow">
@@ -135,6 +135,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .persona-card .pr-advice{font-size:13px;line-height:1.85;background:rgba(255,255,255,.09);border-radius:11px;padding:13px 14px;}
 .persona-card .pr-advice b{display:block;color:var(--gold);font-size:12px;letter-spacing:1.5px;margin-bottom:6px;}
 .persona-card .pr-note{margin-top:13px;padding-top:12px;border-top:1px dashed rgba(255,255,255,.22);font-size:11.5px;opacity:.62;line-height:1.7;text-align:center;}
+/* canvas 生成的结果卡图片：长按可存相册，所以不要给它加 pointer-events 拦截或 user-select */
+.persona-img{display:block;width:100%;height:auto;border-radius:18px;box-shadow:0 10px 30px rgba(15,36,64,.28);}
 
 .note-tip{background:#fff8e6;border:1px solid #f0d9a0;color:#8a6a1e;font-size:12.5px;line-height:1.6;padding:9px 12px;border-radius:10px;margin-bottom:14px;}
 /* 打败了X%的人：分数分桶统计出的百分位 */
@@ -322,8 +324,9 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
   <!-- 屏6：防骗性格结果（16型） -->
   <section id="s-persona" class="screen">
     <div class="note-wrap">
-      <div class="note-tip">📸 长按卡片可保存 —— 发出去让朋友也测测，看谁更容易栽</div>
+      <div class="note-tip">📸 长按卡片即可保存到相册 —— 发出去让朋友也测测，看谁更容易栽</div>
       <div class="persona-card" id="persona-card"></div>
+      <button class="btn" id="btn-persona-save" onclick="savePersonaImage()" style="margin-top:14px">⬇️ 保存图片</button>
       <button class="btn ghost" id="btn-pt-back" onclick="backToEnd()">← 返回结算</button>
     </div>
   </section>
@@ -663,7 +666,156 @@ function finishPTest(){
 /* 从结局页的「看卡片」进结果页：单独压一层，返回时回到结局页 */
 function openPersona(){ pushNav('s-end'); show('s-persona'); }
 
+/* 保存性格卡图片。手机上长按图片本身就能存；这个按钮是给桌面端、以及长按不好使的机型兜底。 */
+function savePersonaImage(){
+  const img=document.getElementById('persona-img');
+  if(!img || !img.src){ toast('还没有可保存的卡片'); return; }
+  const a=document.createElement('a');
+  a.href=img.src;
+  a.download='我的防骗性格.jpg';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('已保存，去「下载」里找');
+}
+
 /* ---- 结果卡片 ---- */
+/* ================= 性格卡 canvas 化 =================
+   原来结果卡是 DOM 渲染的：手机长按只会选中文字，存不成图片。
+   现在把同一张卡画进 canvas，再以 <img> 显示 —— 所见即所存，长按即可存相册。
+   ⚠️ 尺寸用「逻辑 px」计算，实际按 PC_SCALE 倍绘制，保证在高清屏上不糊。 */
+const PC_SCALE=2;
+const PC_W=375;          // 逻辑宽度
+const PC_PAD=20;         // 逻辑左右内边距
+const PC_FONT='system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+const PC_GOLD='#e8b339', PC_GOLD2='#f5d67a';
+
+function pcFont(w,s){ return w+' '+s+'px '+PC_FONT; }
+// 自己实现圆角矩形，不依赖 ctx.roundRect（老一点的移动端浏览器没有）
+function pcRound(ctx,x,y,w,h,r){
+  const rr=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr,y);
+  ctx.arcTo(x+w,y,x+w,y+h,rr);
+  ctx.arcTo(x+w,y+h,x,y+h,rr);
+  ctx.arcTo(x,y+h,x,y,rr);
+  ctx.arcTo(x,y,x+w,y,rr);
+  ctx.closePath();
+}
+// 中文没有空格，按字符折行
+function pcWrap(ctx,text,maxW){
+  const out=[];
+  String(text).split('\n').forEach(seg=>{
+    let cur='';
+    for(const ch of seg){
+      const t=cur+ch;
+      if(cur && ctx.measureText(t).width>maxW){ out.push(cur); cur=ch; }
+      else cur=t;
+    }
+    if(cur) out.push(cur);
+  });
+  return out;
+}
+
+function personaCanvasDataURL(p){
+  const info=PERSONA[p.code];
+  const W=PC_W, inner=W-PC_PAD*2;
+  const probe=document.createElement('canvas').getContext('2d');
+  const wrap=(w,s,t)=>{ probe.font=pcFont(w,s); return pcWrap(probe,t,inner); };
+
+  const dims=[
+    ['信什么','权威','亲缘',p.trust==='auth',p.strength.trust],
+    ['图什么','贪利','避害',p.drive==='gain',p.strength.drive],
+    ['靠什么','独断','求证',p.mode==='solo',  p.strength.mode],
+    ['什么时候','急躁','拖延',p.pace==='rush',p.strength.pace]
+  ];
+  const L_desc=wrap(400,14,info.d);
+  const L_adv =wrap(400,13,info.a);
+  const L_code=wrap(400,11.5,p.code+' · '+PT_DIMNAME.trust[p.trust]+' / '+PT_DIMNAME.drive[p.drive]
+                                    +' / '+PT_DIMNAME.mode[p.mode]+' / '+PT_DIMNAME.pace[p.pace]);
+  const L_note=wrap(400,11.5,'基于 12 道情境题作答，同一套答案每次结果都一样。这不是临床心理测评，只是一面镜子。');
+
+  const EYE=16, NAMEH=44, CODEH=16, ROWH=28, ROWGAP=9;
+  const descH=26+L_desc.length*26;
+  const advH =48+L_adv.length*24;
+  const noteH=12+L_note.length*20;
+  const FOOT=40;
+  const total=26 + EYE+10 + NAMEH+6 + CODEH+18 + descH+17 + (4*ROWH+3*ROWGAP)+15
+              + advH+13 + noteH+14 + FOOT + 22;
+
+  const cv=document.createElement('canvas');
+  cv.width=Math.ceil(W*PC_SCALE);
+  cv.height=Math.ceil(total*PC_SCALE);
+  const ctx=cv.getContext('2d');
+  ctx.scale(PC_SCALE,PC_SCALE);
+
+  // 背景：与 CSS 的 160deg 深蓝渐变一致
+  const bg=ctx.createLinearGradient(0,0,W,total);
+  bg.addColorStop(0,'#0f2440'); bg.addColorStop(.45,'#1e3a5f'); bg.addColorStop(1,'#2c5f8a');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,total);
+
+  const center=(txt,y,color,font)=>{ ctx.font=font; ctx.fillStyle=color; ctx.textAlign='center'; ctx.fillText(txt,W/2,y); ctx.textAlign='left'; };
+
+  let y=26;
+  // 眉题
+  center('你的防骗性格', y+12, 'rgba(255,255,255,.72)', pcFont(400,12)); y+=EYE+10;
+  // 类型名（金色渐变）
+  const gn=ctx.createLinearGradient(W/2-90,0,W/2+90,0);
+  gn.addColorStop(0,PC_GOLD2); gn.addColorStop(1,PC_GOLD);
+  center(info.n, y+33, gn, pcFont(900,33)); y+=NAMEH+6;
+  // 类型码 + 四维全称
+  ctx.font=pcFont(400,11.5); ctx.fillStyle='rgba(255,255,255,.75)';
+  L_code.forEach(l=>{ ctx.textAlign='center'; ctx.fillText(l,W/2,y+12); ctx.textAlign='left'; y+=16; });
+  y+=(CODEH-L_code.length*16)+18;
+  // 画像
+  ctx.fillStyle='rgba(255,255,255,.09)'; pcRound(ctx,PC_PAD,y,inner,descH,11); ctx.fill();
+  ctx.fillStyle=PC_GOLD; pcRound(ctx,PC_PAD,y,3,descH,1.5); ctx.fill();
+  ctx.font=pcFont(400,14); ctx.fillStyle='rgba(255,255,255,.95)';
+  L_desc.forEach((l,i)=>ctx.fillText(l,PC_PAD+14,y+13+26*i+19));
+  y+=descH+17;
+  // 四维
+  const pillW=(inner-62-30-24)/2;
+  dims.forEach(d=>{
+    const [label,ln,rn,leftOn,st]=d;
+    let x=PC_PAD;
+    ctx.fillStyle=leftOn?'rgba(232,179,57,.95)':'rgba(255,255,255,.08)';
+    pcRound(ctx,x,y,pillW,ROWH,8); ctx.fill();
+    ctx.font=pcFont(leftOn?800:400,12); ctx.fillStyle=leftOn?'#2a1d00':'rgba(255,255,255,.45)';
+    ctx.textAlign='center'; ctx.fillText(ln,x+pillW/2,y+19); x+=pillW+8;
+    ctx.font=pcFont(400,11); ctx.fillStyle='rgba(255,255,255,.6)';
+    ctx.fillText(label,x+31,y+19); x+=62+8;
+    ctx.fillStyle=!leftOn?'rgba(232,179,57,.95)':'rgba(255,255,255,.08)';
+    pcRound(ctx,x,y,pillW,ROWH,8); ctx.fill();
+    ctx.font=pcFont(!leftOn?800:400,12); ctx.fillStyle=!leftOn?'#2a1d00':'rgba(255,255,255,.45)';
+    ctx.fillText(rn,x+pillW/2,y+19); x+=pillW+8;
+    ctx.font=pcFont(400,10.5); ctx.fillStyle='rgba(255,255,255,.5)';
+    ctx.fillText(st+'/3',x+15,y+19);
+    ctx.textAlign='left';
+    y+=ROWH+ROWGAP;
+  });
+  y-=ROWGAP; y+=15;
+  // 提醒
+  ctx.fillStyle='rgba(255,255,255,.09)'; pcRound(ctx,PC_PAD,y,inner,advH,11); ctx.fill();
+  ctx.font=pcFont(700,12); ctx.fillStyle=PC_GOLD; ctx.fillText('给你的提醒',PC_PAD+14,y+13+11);
+  ctx.font=pcFont(400,13); ctx.fillStyle='rgba(255,255,255,.95)';
+  L_adv.forEach((l,i)=>ctx.fillText(l,PC_PAD+14,y+13+16+6+24*i+17));
+  y+=advH+13;
+  // 口径说明（上方虚线）
+  ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(PC_PAD,y+0.5); ctx.lineTo(W-PC_PAD,y+0.5); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font=pcFont(400,11.5); ctx.fillStyle='rgba(255,255,255,.62)';
+  L_note.forEach((l,i)=>{ ctx.textAlign='center'; ctx.fillText(l,W/2,y+12+20*i+14); ctx.textAlign='left'; });
+  y+=noteH+14;
+  // 品牌（分享出去要带出处）
+  center('反诈先锋 · 来自「写点知识」', y+12, 'rgba(255,255,255,.55)', pcFont(400,11.5));
+  center('12 道情境题，测出你的防骗性格', y+12+20, 'rgba(255,255,255,.38)', pcFont(400,10.5));
+
+  // 用 JPEG：这张卡是「大块渐变 + 文字」，PNG 要 800KB+，JPEG 只要一百多 KB，肉眼看不出差别
+  return cv.toDataURL('image/jpeg', 0.92);
+}
+
+/* DOM 版卡片：仅作为 canvas 不可用时的兜底（正常不会走到） */
 function personaCardHTML(p){
   const info=PERSONA[p.code];
   const dimRow=(label,left,right,val,st)=>
@@ -687,7 +839,16 @@ function personaCardHTML(p){
 }
 
 function renderPersona(p){
-  document.getElementById('persona-card').innerHTML=personaCardHTML(p);
+  // 画进 canvas 再以 <img> 显示：所见即所存，手机长按就能存相册。
+  // （原来直接渲染 DOM，长按只会选中文字，存不成图片）
+  const card=document.getElementById('persona-card');
+  try{
+    const url=personaCanvasDataURL(p);
+    card.innerHTML='<img class="persona-img" id="persona-img" alt="我的防骗性格：'
+      +esc(PERSONA[p.code].n)+'" src="'+url+'">';
+  }catch(e){
+    card.innerHTML=personaCardHTML(p);   // canvas 不可用时退回 DOM 版，至少能看
+  }
   // 同步回填结算页那块（原称号栏位）
   const box=document.getElementById('pt-box');
   const info=PERSONA[p.code];
