@@ -189,6 +189,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .note-item .kp{font-size:12.5px;color:#1e3a5f;background:#eef3f9;border-radius:8px;padding:7px 10px;margin-top:7px;line-height:1.65;}
 .note-ft{margin-top:18px;padding-top:13px;border-top:1px dashed #d5dde7;text-align:center;font-size:11.5px;color:#8b96a2;line-height:1.8;}
 .note-ft .brand{color:var(--lapis);font-weight:800;font-size:13px;}
+/* canvas 生成的笔记图片：长按可存相册 */
+.note-img{display:block;width:100%;height:auto;border-radius:12px;}
 .toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:99;display:none;}
 /* 人次统计 */
 .stats-line{text-align:center;margin-top:10px;font-size:13px;color:#666;}
@@ -334,8 +336,9 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
   <!-- 屏5：防骗笔记（错题本，截图友好） -->
   <section id="s-note" class="screen">
     <div class="note-wrap">
-      <div class="note-tip">📸 长按图片区域可保存，或直接手机截屏 —— 存下来，下次遇到就能对上号</div>
+      <div class="note-tip">📸 长按笔记即可保存到相册 —— 存下来，下次遇到就能对上号</div>
       <div class="note-paper" id="note-paper"></div>
+      <button class="btn" id="btn-note-save" onclick="saveNoteImage()" style="margin-top:14px">⬇️ 保存图片</button>
       <button class="btn ghost" onclick="backToEnd()">← 返回结算</button>
     </div>
   </section>
@@ -666,18 +669,20 @@ function finishPTest(){
 /* 从结局页的「看卡片」进结果页：单独压一层，返回时回到结局页 */
 function openPersona(){ pushNav('s-end'); show('s-persona'); }
 
-/* 保存性格卡图片。手机上长按图片本身就能存；这个按钮是给桌面端、以及长按不好使的机型兜底。 */
-function savePersonaImage(){
-  const img=document.getElementById('persona-img');
-  if(!img || !img.src){ toast('还没有可保存的卡片'); return; }
+/* 保存 canvas 生成的图片。手机上长按图片本身就能存；这个按钮是给桌面端、以及长按不好使的机型兜底。 */
+function saveCardImage(imgId,filename){
+  const img=document.getElementById(imgId);
+  if(!img || !img.src){ toast('还没有可保存的图片'); return; }
   const a=document.createElement('a');
   a.href=img.src;
-  a.download='我的防骗性格.jpg';
+  a.download=filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   toast('已保存，去「下载」里找');
 }
+function savePersonaImage(){ saveCardImage('persona-img','我的防骗性格.jpg'); }
+function saveNoteImage(){ saveCardImage('note-img','我的防骗笔记.jpg'); }
 
 /* ---- 结果卡片 ---- */
 /* ================= 性格卡 canvas 化 =================
@@ -813,6 +818,232 @@ function personaCanvasDataURL(p){
 
   // 用 JPEG：这张卡是「大块渐变 + 文字」，PNG 要 800KB+，JPEG 只要一百多 KB，肉眼看不出差别
   return cv.toDataURL('image/jpeg', 0.92);
+}
+
+/* 折行：第一行可用宽度与后续行不同（用于「我当时选了：」这种前缀 + 长文本）
+   ⚠️ 放在这里是因为它同时被性格卡和笔记的 canvas 渲染用到。 */
+function pcWrapFirst(ctx,text,firstMax,restMax){
+  const out=[]; let cur='', max=firstMax;
+  for(const ch of String(text)){
+    const t=cur+ch;
+    if(cur && ctx.measureText(t).width>max){ out.push(cur); cur=ch; max=restMax; }
+    else cur=t;
+  }
+  if(cur) out.push(cur);
+  return out;
+}
+
+/* ================= 防骗笔记 canvas 化 =================
+   和性格卡同理：DOM 版长按只能选文字，存不成图片。
+   笔记是「变长文档」（几条错题随局势变化），所以用「先算高度、再按同一组 ops 绘制」的写法，
+   避免测量与绘制两段代码各写一遍、迟早对不上。 */
+const NC_W=375, NC_PAD=18, NC_INNER=NC_W-NC_PAD*2;
+const NC_LAPIS='#1e3a5f', NC_LAPIS2='#2c5f8a';
+const NC_OK='#67c23a', NC_WARN='#e6a23c', NC_BAD='#e15554';
+
+function noteCanvasDataURL(){
+  const probe=document.createElement('canvas').getContext('2d');
+  const F=(w,s)=>pcFont(w,s);
+  const wrap=(font,text,max)=>{ probe.font=font; return pcWrap(probe,text,max===undefined?NC_INNER:max); };
+
+  const d=new Date(), pad2=n=>String(n).padStart(2,'0');
+  const dateStr=d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+  const log=state.log||[];
+  const wrong=log.filter(x=>x.tag!=='best');
+  const right=log.filter(x=>x.tag==='best');
+  const hero=log.find(x=>x.tag==='bad')||log.find(x=>x.tag==='ok')||log[0];
+
+  const ops=[];   // 每项 {h:高度, draw:(ctx,y)=>void}
+  const center=(ctx,txt,y,color,font)=>{ ctx.font=font; ctx.fillStyle=color; ctx.textAlign='center'; ctx.fillText(txt,NC_W/2,y); ctx.textAlign='left'; };
+  // ⚠️ 上一个是「画布居中」；统计块要各自块内居中，必须能指定 x —— 否则三个数字会叠在画布正中
+  const tcenter=(ctx,txt,cx,y,color,font)=>{ ctx.font=font; ctx.fillStyle=color; ctx.textAlign='center'; ctx.fillText(txt,cx,y); ctx.textAlign='left'; };
+  const rect=(ctx,x,y,w,h,r,fill)=>{ ctx.fillStyle=fill; pcRound(ctx,x,y,w,h,r); ctx.fill(); };
+  // 徽章：返回宽度，供排版用
+  const badgeW=(txt)=>{ probe.font=F(700,10.5); return probe.measureText(txt).width+14; };
+  const BT={best:['🛡️ 守住','#eaf7e4','#4f7d38'], ok:['⚠️ 中招','#fdf4e3','#96702a'], bad:['💥 泄露','#fdeaea','#a33333']};
+
+  /* ---- 头部 ---- */
+  ops.push({h:54, draw:(ctx,y)=>{
+    ctx.font=F(900,21); ctx.fillStyle=NC_LAPIS; ctx.fillText('我的防骗笔记',NC_PAD,y+18);
+    ctx.font=F(400,12); ctx.fillStyle='#7b8794';
+    ctx.fillText(IDNAME[state.identity]+'线 · '+dateStr+' · 经历了 21 天风险期',NC_PAD,y+38);
+    ctx.strokeStyle=NC_LAPIS; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(NC_PAD,y+54); ctx.lineTo(NC_W-NC_PAD,y+54); ctx.stroke();
+  }});
+
+  /* ---- 三栏统计 ---- */
+  const STATH=56;
+  ops.push({h:STATH+17, draw:(ctx,y)=>{
+    const gap=8, bw=(NC_INNER-gap*2)/3;
+    [['守住',state.cleared,'#eaf7e4',NC_OK,'#4f7d38'],
+     ['中招',state.busted,'#fdf4e3',NC_WARN,'#96702a'],
+     ['泄露',state.leakLevel,'#fdeaea',NC_BAD,'#a33333']].forEach((s,i)=>{
+      const x=NC_PAD+i*(bw+gap);
+      rect(ctx,x,y,bw,STATH,10,s[2]);
+      tcenter(ctx,String(s[1]),x+bw/2,y+28,s[3],F(900,20));
+      tcenter(ctx,s[0],x+bw/2,y+44,s[4],F(400,11));
+    });
+  }});
+
+  /* ---- 最该记住的一条 ---- */
+  if(hero){
+    const L=wrap(F(700,14.5),hero.kp,NC_INNER-30);
+    const h=14+13+6+L.length*24+14;
+    ops.push({h:h+18, draw:(ctx,y)=>{
+      const g=ctx.createLinearGradient(NC_PAD,y,NC_W-NC_PAD,y+h);
+      g.addColorStop(0,NC_LAPIS); g.addColorStop(1,NC_LAPIS2);
+      rect(ctx,NC_PAD,y,NC_INNER,h,12,g);
+      ctx.font=F(400,11); ctx.fillStyle='rgba(255,255,255,.85)';
+      ctx.fillText('本局最该记住的一条',NC_PAD+15,y+25);
+      ctx.font=F(700,14.5); ctx.fillStyle='#fff';
+      L.forEach((l,i)=>ctx.fillText(l,NC_PAD+15,y+14+13+6+24*i+18));
+    }});
+  }
+
+  /* ---- 防骗性格（只有测过才有） ---- */
+  if(ptResult && PERSONA[ptResult.code]){
+    const info=PERSONA[ptResult.code];
+    const dims=[['信什么',{auth:'权威',kin:'亲缘'},'trust'],['图什么',{gain:'贪利',loss:'避害'},'drive'],
+                ['靠什么',{solo:'独断',verify:'求证'},'mode'],['什么时候',{rush:'急躁',delay:'拖延'},'pace']];
+    const rows=dims.map(d=>[d[0],d[1][ptResult[d[2]]],ptResult.strength[d[2]]]);
+    const L=wrap(F(400,12.5),info.a,NC_INNER-28-22);
+    const h=98+(9+16+4+L.length*21+9)+13;
+    ops.push({h:h+18, draw:(ctx,y)=>{
+      // 外框：浅底 + 左侧蓝边
+      ctx.fillStyle='#f4f7fb'; pcRound(ctx,NC_PAD,y,NC_INNER,h,11); ctx.fill();
+      ctx.strokeStyle='#dfe7f0'; ctx.lineWidth=1; pcRound(ctx,NC_PAD,y,NC_INNER,h,11); ctx.stroke();
+      rect(ctx,NC_PAD,y,3,h,1.5,NC_LAPIS2);
+      let yy=y+13;
+      ctx.font=F(800,10.5); ctx.fillStyle='#7b8794'; ctx.fillText('防骗性格',NC_PAD+14,yy+10);
+      ctx.font=F(700,10.5); ctx.fillStyle='#9aa5b1'; ctx.textAlign='right';
+      ctx.fillText(ptResult.code,NC_W-NC_PAD-14,yy+10); ctx.textAlign='left';
+      yy+=16+10;
+      ctx.font=F(900,19); ctx.fillStyle=NC_LAPIS; ctx.fillText(info.n,NC_PAD+14,yy+16);
+      yy+=26+10;
+      // 四维：两列排（每行一个维度）
+      rows.forEach((r,i)=>{
+        const cx=NC_PAD+14+(i%2)*((NC_INNER-28)/2), cy=yy+Math.floor(i/2)*22;
+        ctx.font=F(400,12); ctx.fillStyle='#8b96a2';
+        ctx.fillText(r[0],cx,cy+12);
+        const w=probe; w.font=F(400,12); const lw=w.measureText(r[0]).width;
+        ctx.font=F(800,12); ctx.fillStyle='#2c3e50'; ctx.fillText(r[1],cx+lw+6,cy+12);
+        const vw=w.measureText(r[1]).width;
+        ctx.font=F(600,10); ctx.fillStyle='#9aa5b1'; ctx.fillText(r[2]+'/3',cx+lw+6+vw+3,cy+12);
+      });
+      yy+=22+1;
+      // 建议（白底小块）
+      const ah=9+16+4+L.length*21+9;
+      rect(ctx,NC_PAD+14,yy,NC_INNER-28,ah,8,'#fff');
+      ctx.font=F(700,11); ctx.fillStyle=NC_LAPIS; ctx.fillText('针对你的提醒',NC_PAD+14+11,yy+9+11);
+      ctx.font=F(400,12.5); ctx.fillStyle='#3d4a58';
+      L.forEach((l,i)=>ctx.fillText(l,NC_PAD+14+11,yy+9+16+4+21*i+15));
+    }});
+  }
+
+  /* ---- 条目 ---- */
+  const itemOp=(x,showMy)=>{
+    const avail=NC_INNER-11;
+    const btxt=BT[x.tag][0], bw=badgeW(btxt);
+    probe.font=F(800,14);
+    const titleW=probe.measureText(x.title).width;   // ⚠️ 必须用 800/14 量，量一次存下来
+    const titleLines=pcWrapFirst(probe,x.title,avail,avail);
+    const oneLine=titleLines.length===1 && titleW+6+bw<=avail;
+    const ttlH=(oneLine?1:titleLines.length+1)*20;
+    let meLines=[];
+    if(showMy){
+      probe.font=F(400,12.5);
+      const pre='我当时选了：', preW=probe.measureText(pre).width;
+      meLines=pcWrapFirst(probe,x.myLabel,avail-preW,avail);
+    }
+    const kpLines=wrap(F(400,12.5),'📌 '+x.kp,avail-20);
+    const kpH=14+kpLines.length*20;
+    const h=ttlH+(showMy?5+meLines.length*19:0)+7+kpH;
+    return {h:h+14, draw:(ctx,y)=>{
+      const bc=x.tag==='bad'?NC_BAD:(x.tag==='ok'?NC_WARN:'#d5dde7');
+      rect(ctx,NC_PAD,y,3,h,1.5,bc);
+      const tx=NC_PAD+11;
+      let yy=y;
+      // 标题 + 徽章
+      ctx.font=F(800,14); ctx.fillStyle='#222';
+      ctx.fillText(x.title,tx,yy+15);
+      if(oneLine){
+        const bw2=bw-14;
+        rect(ctx,tx+titleW+6,yy+3,bw2,17,6,BT[x.tag][1]);
+        ctx.font=F(700,10.5); ctx.fillStyle=BT[x.tag][2];
+        ctx.fillText(btxt,tx+titleW+13,yy+15);
+      }else{
+        rect(ctx,tx,yy+20,bw,17,6,BT[x.tag][1]);
+        ctx.font=F(700,10.5); ctx.fillStyle=BT[x.tag][2]; ctx.fillText(btxt,tx+7,yy+32);
+      }
+      yy+=ttlH;
+      // 我当时选了
+      if(showMy){
+        probe.font=F(400,12.5); const pre='我当时选了：';
+        ctx.font=F(400,12.5); ctx.fillStyle='#5a6672'; ctx.fillText(pre,tx,yy+13);
+        const preW=probe.measureText(pre).width;
+        meLines.forEach((l,i)=>{
+          ctx.font=F(700,12.5); ctx.fillStyle='#333';
+          ctx.fillText(l,i===0?tx+preW:tx,yy+13+19*i);
+        });
+        yy+=5+meLines.length*19;
+      }
+      // 知识点
+      yy+=7;
+      rect(ctx,tx,yy,avail,kpH,8,'#eef3f9');
+      ctx.font=F(400,12.5); ctx.fillStyle=NC_LAPIS;
+      kpLines.forEach((l,i)=>ctx.fillText(l,tx+10,yy+7+20*i+14));
+    }};
+  };
+  if(wrong.length){
+    ops.push({h:30, draw:(ctx,y)=>{
+      ctx.font=F(800,12.5); ctx.fillStyle=NC_LAPIS;
+      const t='⚠️ 需要复习 '+wrong.length+' 条'; ctx.fillText(t,NC_PAD,y+14);
+      probe.font=F(800,12.5); const tw=probe.measureText(t).width;
+      ctx.strokeStyle='#e3e9f0'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(NC_PAD+tw+10,y+10.5); ctx.lineTo(NC_W-NC_PAD,y+10.5); ctx.stroke();
+    }});
+    wrong.forEach(x=>ops.push(itemOp(x,true)));
+  }else{
+    ops.push({h:42, draw:(ctx,y)=>{
+      center(ctx,'🎉 '+state.log.length+' 关全守住，本局没有错题',y+24,'#4f7d38',F(700,13.5));
+    }});
+  }
+  if(right.length){
+    ops.push({h:34, draw:(ctx,y)=>{
+      ctx.font=F(800,12.5); ctx.fillStyle=NC_LAPIS;
+      const t='✅ 已经守住 '+right.length+' 条'; ctx.fillText(t,NC_PAD,y+18);
+      probe.font=F(800,12.5); const tw=probe.measureText(t).width;
+      ctx.strokeStyle='#e3e9f0'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(NC_PAD+tw+10,y+14.5); ctx.lineTo(NC_W-NC_PAD,y+14.5); ctx.stroke();
+    }});
+    right.forEach(x=>ops.push(itemOp(x,false)));
+  }
+
+  /* ---- 页脚 ---- */
+  const ftL1='反诈先锋 · 来自「写点知识」';
+  const ftL2=ptResult?('把这张转给家里人 —— 你的『'+PERSONA[ptResult.code].n+'』弱点，可能正是他们的强项')
+                     :'骗子的话术一直在变，套路从来没变 —— 存下这张，下次先对号';
+  const ftL2L=wrap(F(400,11.5),ftL2,NC_INNER);
+  const ftH=26+19*(1+ftL2L.length)+4;
+  ops.push({h:ftH+22, draw:(ctx,y)=>{
+    ctx.setLineDash([4,4]); ctx.strokeStyle='#d5dde7'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(NC_PAD,y+0.5); ctx.lineTo(NC_W-NC_PAD,y+0.5); ctx.stroke();
+    ctx.setLineDash([]);
+    center(ctx,ftL1,y+26,'#8b96a2',F(400,11.5));
+    ftL2L.forEach((l,i)=>center(ctx,l,y+26+19*(i+1),'#8b96a2',F(400,11.5)));
+  }});
+
+  /* ---- 定尺寸并绘制 ---- */
+  const total=26+ops.reduce((a,o)=>a+o.h,0)+22;
+  const cv=document.createElement('canvas');
+  cv.width=Math.ceil(NC_W*PC_SCALE);
+  cv.height=Math.ceil(total*PC_SCALE);
+  const ctx=cv.getContext('2d');
+  ctx.scale(PC_SCALE,PC_SCALE);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,NC_W,total);   // 白底纸
+  let y=26;
+  ops.forEach(o=>{ o.draw(ctx,y); y+=o.h; });
+  return cv.toDataURL('image/jpeg',0.92);
 }
 
 /* DOM 版卡片：仅作为 canvas 不可用时的兜底（正常不会走到） */
@@ -1104,7 +1335,13 @@ function buildNote(){
 }
 
 function openNote(){
-  document.getElementById('note-paper').innerHTML=buildNote();
+  const paper=document.getElementById('note-paper');
+  try{
+    const url=noteCanvasDataURL();
+    paper.innerHTML='<img class="note-img" id="note-img" alt="我的防骗笔记" src="'+url+'">';
+  }catch(e){
+    paper.innerHTML=buildNote();   // canvas 不可用时退回 DOM 版，至少能看
+  }
   pushNav('s-end');
   show('s-note');
 }
