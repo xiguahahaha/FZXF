@@ -81,6 +81,9 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .verdict.hit{background:#fde8e8;color:var(--bad);}
 .review-card p{font-size:14px;color:#444;margin-bottom:8px;}
 .kp{background:var(--lapis-bg);border-left:3px solid var(--lapis2);padding:10px 12px;border-radius:8px;font-size:13.5px;color:#33506e;margin:10px 0 16px;}
+/* 复盘屏的「正确做法」块：只在选错时出现，用绿色与蓝色的知识点块区分开 */
+.r-fix{background:#eefaf0;border-left:3px solid var(--ok);border-radius:8px;padding:10px 12px;font-size:13.5px;color:#1f5c34;line-height:1.72;margin:10px 0 0;}
+.r-fix b{display:block;font-size:11.5px;letter-spacing:1px;color:#2f8f52;margin-bottom:5px;}
 .btn{display:block;width:100%;background:var(--lapis);color:#fff;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px;}
 .btn:active{opacity:.85;}
 /* 结局 */
@@ -249,6 +252,11 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
       <h2 id="r-title">本关复盘</h2>
       <div class="verdict" id="r-verdict"></div>
       <p id="r-desc"></p>
+      <!-- 选错时才显示：把正确项的「具体动作」直接摆给玩家看（选对时上面的说明已解释过为什么对） -->
+      <div class="r-fix" id="r-fix" style="display:none">
+        <b>✅ 正确做法</b>
+        <span id="r-fix-text"></span>
+      </div>
       <div class="kp" id="r-kp"></div>
       <button class="btn" id="r-next" onclick="nextLevel()">继续 →</button>
     </div>
@@ -789,6 +797,18 @@ function choose(i){
   vd.className='verdict '+o.verdict;
   vd.textContent=VTEXT[o.verdict]+' · '+VSUB[o.verdict];
   document.getElementById('r-desc').textContent=o.desc;
+  // 选错时把「正确做法」摆出来。正确项在 currentOpts 里（每关都会打乱，所以要按 tag 找）。
+  // 选对时不显示：上面的 desc 已经解释了为什么这样对、骗子想干什么。
+  const bestOpt=currentOpts.find(x=>x.tag==='best');
+  const fixBox=document.getElementById('r-fix');
+  if(fixBox){
+    if(o.tag!=='best' && bestOpt){
+      document.getElementById('r-fix-text').textContent=bestOpt.label;
+      fixBox.style.display='block';
+    }else{
+      fixBox.style.display='none';
+    }
+  }
   document.getElementById('r-kp').textContent='📌 防骗知识点：'+lv.kp;
   show('s-review');
 }
