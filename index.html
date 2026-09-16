@@ -98,6 +98,22 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .share-card .mid{font-size:14px;opacity:.92;margin-top:8px;line-height:1.7;}
 .share-card .qr{margin-top:14px;font-size:12px;background:rgba(255,255,255,.15);display:inline-block;padding:6px 12px;border-radius:10px;}
 .disclaimer{font-size:11px;color:#9aa5b1;line-height:1.6;text-align:center;margin:14px 0 4px;padding:0 6px;}
+/* 结局页空状态：没玩过游戏就进来时（如直接测完性格点返回），本局成绩全是空值，
+   要整块藏掉并改显「去玩」引导，否则顶部是一大片空白 */
+.end-empty{display:none;background:#fff;border-radius:14px;padding:24px 16px;margin:10px 0 16px;box-shadow:0 2px 10px rgba(30,58,95,.07);}
+.end-wrap.no-game .end-empty{display:block;}
+.end-wrap.no-game .shield,
+.end-wrap.no-game .end-title,
+.end-wrap.no-game .end-score,
+.end-wrap.no-game .end-leak,
+.end-wrap.no-game .stat-row,
+.end-wrap.no-game .end-rank,
+.end-wrap.no-game .beat,
+.end-wrap.no-game .share-card,
+.end-wrap.no-game #btn-note{display:none;}
+.end-empty .ee-icon{font-size:40px;line-height:1;margin-bottom:11px;}
+.end-empty .ee-title{font-size:17px;font-weight:800;color:var(--lapis);margin-bottom:8px;}
+.end-empty .ee-sub{font-size:13px;color:#7b8794;line-height:1.72;margin-bottom:16px;}
 .btn.ghost{background:#fff;color:var(--lapis);border:1.5px solid #d5dde7;}
 /* 防骗笔记（错题本）：白底深字，为截图分享优化 */
 /* 防骗人格卡：MBTI 式结果页，深色高级感 + 分享友好 */
@@ -241,7 +257,14 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 
   <!-- 屏4：结局 -->
   <section id="s-end" class="screen">
-    <div class="end-wrap">
+    <div class="end-wrap no-game" id="end-wrap">
+      <!-- 空状态：初始带 no-game；只有 endGame() 跑过才会去掉。没玩过游戏就直接进来时显示 -->
+      <div class="end-empty" id="end-empty">
+        <div class="ee-icon">🕵️</div>
+        <div class="ee-title">这一局还没开始</div>
+        <div class="ee-sub">性格测完了，但还没有这一局的防骗分。<br>抽一张身份牌玩满 5 关，才有成绩和防骗笔记。</div>
+        <button class="btn" onclick="restart()">▶ 现在玩一局（5 关）</button>
+      </div>
       <div class="shield" id="end-shield"></div>
       <div class="end-title" id="end-title"></div>
       <div class="end-score" id="end-score"></div>
@@ -293,7 +316,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
     <div class="note-wrap">
       <div class="note-tip">📸 长按卡片可保存 —— 发出去让朋友也测测，看谁更容易栽</div>
       <div class="persona-card" id="persona-card"></div>
-      <button class="btn ghost" id="btn-pt-back" onclick="show('s-end')">← 返回结算</button>
+      <button class="btn ghost" id="btn-pt-back" onclick="backToEnd()">← 返回结算</button>
     </div>
   </section>
 
@@ -302,7 +325,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
     <div class="note-wrap">
       <div class="note-tip">📸 长按图片区域可保存，或直接手机截屏 —— 存下来，下次遇到就能对上号</div>
       <div class="note-paper" id="note-paper"></div>
-      <button class="btn ghost" onclick="show('s-end')">← 返回结算</button>
+      <button class="btn ghost" onclick="backToEnd()">← 返回结算</button>
     </div>
   </section>
 
@@ -324,6 +347,10 @@ const DATA_URL='https://xiguahahaha.github.io/FZXF-data/levels.js';
 
 let state = {identity:null, level:0, leakLevel:0, cleared:0, busted:0, log:[], playlist:[]};
 let currentOpts=[];
+/* 是否玩完过一局。只有 endGame() 会置 true。
+   结局页(s-end)同时承载「本局成绩」和「防骗性格」两块，而性格测试是独立入口，
+   没玩过游戏也能测完再点「返回」进来 —— 这时成绩全是空值，必须靠这个标记把成绩块藏掉。 */
+let hasPlayed=false;
 const SAVE_KEY='reborn_antifraud_v1';
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
@@ -641,6 +668,9 @@ function renderPersona(p){
       ' · 点这里看完整卡片</span></div>'+
       '<button class="btn pt-btn" onclick="show(\'s-persona\')">看卡片 →</button>';
   }
+  // 返回按钮措辞随状态变：没玩过游戏时结局页没有成绩块，写「返回结算」会误导
+  const pb=document.getElementById('btn-pt-back');
+  if(pb) pb.textContent = hasPlayed ? '← 返回结算' : '← 返回结果页';
 }
 
 /* ---- 首页直接测（不玩游戏也能测） ---- */
@@ -748,6 +778,8 @@ function endGame(){
   const bb=document.getElementById('beat-box');
   if(bb){ bb.style.display='none'; document.getElementById('beat-fill').style.width='0'; }
   computeBeat(sc);
+  hasPlayed=true;      // 这一局有成绩了：结局页退出空状态（必须放在 show 之前）
+  syncEndEmpty();
   show('s-end');
 }
 
@@ -841,6 +873,15 @@ function openNote(){
 }
 
 function restart(){ show('s-identity'); }
+
+/* 结局页空状态开关：没玩过游戏时给 .end-wrap 挂 no-game，藏掉所有本局成绩块。
+   每次进入结局页都要调一次（别只依赖 endGame），因为性格/笔记页都可能直接跳回来。 */
+function syncEndEmpty(){
+  const w=document.getElementById('end-wrap');
+  if(w) w.classList.toggle('no-game', !hasPlayed);
+}
+/* 性格/笔记页的「返回」统一走这里，保证挂上正确的空状态 */
+function backToEnd(){ syncEndEmpty(); show('s-end'); }
 
 // 读取历史最高分（可选展示，预留）
 try{ const best=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}'); }catch(e){}
