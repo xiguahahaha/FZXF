@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>反诈先锋 - 21天防骗挑战</title>
-<meta name="description" content="抽一张身份牌，替爸妈先走一遍这21天。5个真实诈骗场景，看看你能守住几分。中老年/青年/老年三条身份线，情景模拟，非官方产品。">
+<meta name="description" content="抽一张身份牌，替爸妈先走一遍这21天。6个真实骗局，你能替他们挡住几个？中老年/青年/老年三条身份线，情景模拟，非官方产品。">
 <meta name="keywords" content="反诈,防骗,反诈游戏,防骗测试,老年人防骗,养老诈骗,反诈先锋,诈骗话术,家庭防骗">
 <meta name="author" content="写点知识">
 <meta name="robots" content="index,follow">
@@ -12,16 +12,16 @@
 <!-- 社交平台分享卡片（微信/微博/X/Facebook 抓取用） -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="反诈先锋">
-<meta property="og:title" content="爸妈的手机里，藏着 5 个骗局">
-<meta property="og:description" content="抽一张身份牌，替爸妈先走一遍这21天。5个真实诈骗场景，看看你能守住几分。">
+<meta property="og:title" content="爸妈的手机里，藏着 6 个骗局">
+<meta property="og:description" content="抽一张身份牌，替爸妈先走一遍这21天。6个真实骗局，你能替他们挡住几个？">
 <meta property="og:url" content="https://xiguahahaha.github.io/FZXF/">
 <meta property="og:image" content="https://xiguahahaha.github.io/FZXF/assets/share-cover.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="爸妈的手机里，藏着 5 个骗局">
-<meta name="twitter:description" content="抽一张身份牌，替爸妈先走一遍这21天。5个真实诈骗场景，看看你能守住几分。">
+<meta name="twitter:title" content="爸妈的手机里，藏着 6 个骗局">
+<meta name="twitter:description" content="抽一张身份牌，替爸妈先走一遍这21天。6个真实骗局，你能替他们挡住几个？">
 <meta name="twitter:image" content="https://xiguahahaha.github.io/FZXF/assets/share-cover.png">
 <meta name="theme-color" content="#1e3a5f">
 <style>
@@ -219,7 +219,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
   <!-- 屏1：身份牌 -->
   <section id="s-identity" class="screen active">
     <div class="h-title">反诈先锋</div>
-    <div class="h-sub">抽一张身份牌，替爸妈先走一遍这 21 天<br>骗子的话术一直在变，套路从来没变</div>
+    <div class="h-sub">抽一张身份牌，替爸妈先走一遍这 21 天<br>6 个真实骗局，你能替他们挡住几个？</div>
     <div class="cards">
       <div class="card mid" onclick="startLine('mid')">
         <img src="assets/mid.png" alt="中年人">
@@ -842,7 +842,7 @@ function endGame(){
   document.getElementById('st-clear').textContent=state.cleared;
   document.getElementById('st-bust').textContent=state.busted;
   document.getElementById('st-leak').textContent=state.leakLevel;
-  document.getElementById('sc-title').textContent='爸妈的手机里，藏着 5 个骗局';
+  document.getElementById('sc-title').textContent='爸妈的手机里，藏着 '+ROUND+' 个骗局';
   const keepLine = state.identity==='youth'?'守住钱包，从练手开始。':state.identity==='elder'?'守住棺材本，从练手开始。':'守住养老钱，从练手开始。';
   document.getElementById('sc-desc').textContent=title+' · '+sc+'分 · '+desc+' '+keepLine;
   // shield svg
