@@ -813,7 +813,7 @@ function personaCanvasDataURL(p){
   L_note.forEach((l,i)=>{ ctx.textAlign='center'; ctx.fillText(l,W/2,y+12+20*i+14); ctx.textAlign='left'; });
   y+=noteH+14;
   // 品牌（分享出去要带出处）
-  center('反诈先锋 · 来自「写点知识」', y+12, 'rgba(255,255,255,.55)', pcFont(400,11.5));
+  center('反诈先锋 · 来自公众号「写点知识」', y+12, 'rgba(255,255,255,.55)', pcFont(400,11.5));
   center('12 道情境题，测出你的防骗性格', y+12+20, 'rgba(255,255,255,.38)', pcFont(400,10.5));
 
   // 用 JPEG：这张卡是「大块渐变 + 文字」，PNG 要 800KB+，JPEG 只要一百多 KB，肉眼看不出差别
@@ -1020,7 +1020,7 @@ function noteCanvasDataURL(){
   }
 
   /* ---- 页脚 ---- */
-  const ftL1='反诈先锋 · 来自「写点知识」';
+  const ftL1='反诈先锋 · 来自公众号「写点知识」';
   const ftL2=ptResult?('把这张转给家里人 —— 你的『'+PERSONA[ptResult.code].n+'』弱点，可能正是他们的强项')
                      :'骗子的话术一直在变，套路从来没变 —— 存下这张，下次先对号';
   const ftL2L=wrap(F(400,11.5),ftL2,NC_INNER);
@@ -1326,7 +1326,7 @@ function buildNote(){
     right.forEach(x=>{h+=noteItem(x,false);});
   }
 
-  h+='<div class="note-ft">反诈先锋 · 来自「<span class="brand">写点知识</span>」<br>'
+  h+='<div class="note-ft">反诈先锋 · 来自公众号「<span class="brand">写点知识</span>」<br>'
     +(ptResult
         ? '把这张转给家里人 —— 你的『'+esc(PERSONA[ptResult.code].n)+'』弱点，可能正是他们的强项'
         : '骗子的话术一直在变，套路从来没变 —— 存下这张，下次先对号')
