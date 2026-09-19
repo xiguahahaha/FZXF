@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>反诈先锋 - 21天防骗挑战</title>
-<meta name="description" content="抽一张身份牌，替爸妈先走一遍这21天。6个真实骗局，你能替他们挡住几个？中老年/青年/老年三条身份线，情景模拟，非官方产品。">
+<title>反诈先锋 - 防骗情景模拟</title>
+<meta name="description" content="抽一张身份牌，替爸妈先挡一遍。6个真实骗局，你能替他们挡住几个？中老年/青年/老年三条身份线，情景模拟，非官方产品。">
 <meta name="keywords" content="反诈,防骗,反诈游戏,防骗测试,老年人防骗,养老诈骗,反诈先锋,诈骗话术,家庭防骗">
 <meta name="author" content="写点知识">
 <meta name="robots" content="index,follow">
@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="反诈先锋">
 <meta property="og:title" content="爸妈的手机里，藏着 6 个骗局">
-<meta property="og:description" content="抽一张身份牌，替爸妈先走一遍这21天。6个真实骗局，你能替他们挡住几个？">
+<meta property="og:description" content="抽一张身份牌，替爸妈先挡一遍。6个真实骗局，你能替他们挡住几个？">
 <meta property="og:url" content="https://xiguahahaha.github.io/FZXF/">
 <meta property="og:image" content="https://xiguahahaha.github.io/FZXF/assets/share-cover.png">
 <meta property="og:image:width" content="1200">
@@ -21,7 +21,7 @@
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="爸妈的手机里，藏着 6 个骗局">
-<meta name="twitter:description" content="抽一张身份牌，替爸妈先走一遍这21天。6个真实骗局，你能替他们挡住几个？">
+<meta name="twitter:description" content="抽一张身份牌，替爸妈先挡一遍。6个真实骗局，你能替他们挡住几个？">
 <meta name="twitter:image" content="https://xiguahahaha.github.io/FZXF/assets/share-cover.png">
 <meta name="theme-color" content="#1e3a5f">
 <style>
@@ -228,7 +228,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
   <!-- 屏1：身份牌 -->
   <section id="s-identity" class="screen active">
     <div class="h-title">反诈先锋</div>
-    <div class="h-sub">抽一张身份牌，替爸妈先走一遍这 21 天<br>6 个真实骗局，你能替他们挡住几个？</div>
+    <div class="h-sub">抽一张身份牌，替爸妈先挡一遍<br>6 个真实骗局，你能替他们挡住几个？</div>
     <div class="cards">
       <div class="card mid" onclick="startLine('mid')">
         <img src="assets/mid.png" alt="中年人">
@@ -249,7 +249,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 
   <!-- 屏2：剧情 -->
   <section id="s-story" class="screen">
-    <div class="progress"><span id="p-day">第 3 天 / 共 21 天</span><span id="step-hint"></span></div>
+    <div class="progress"><span id="p-day">第 1 关 / 共 6 关</span><span id="step-hint"></span></div>
     <div class="scene-label" id="scene-label">第 1 关 · 冒充客服退款</div>
     <div class="chat" id="chat"></div>
     <div class="options" id="options"></div>
@@ -885,7 +885,7 @@ function noteCanvasDataURL(){
   ops.push({h:54, draw:(ctx,y)=>{
     ctx.font=F(900,21); ctx.fillStyle=NC_LAPIS; ctx.fillText('我的防骗笔记',NC_PAD,y+18);
     ctx.font=F(400,12); ctx.fillStyle='#7b8794';
-    ctx.fillText(IDNAME[state.identity]+'线 · '+dateStr+' · 经历了 21 天风险期',NC_PAD,y+38);
+    ctx.fillText(IDNAME[state.identity]+'线 · '+dateStr+' · 这一局 '+state.log.length+' 关',NC_PAD,y+38);
     ctx.strokeStyle=NC_LAPIS; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(NC_PAD,y+54); ctx.lineTo(NC_W-NC_PAD,y+54); ctx.stroke();
   }});
@@ -1148,7 +1148,6 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 const ROUND=6;
 
 function startLine(id){
-  const days=[3,7,11,15,18,21];   // 6 个时间点，最后一天正好落在 21 天期限上
   let picks;
   if(id==='mid' && LINE.elder){        // 中年局：本线 5 关 + 老年线掺 1 关
     picks = shuffle([...LINE.mid]).slice(0,ROUND-1).concat(shuffle([...LINE.elder]).slice(0,1));
@@ -1160,7 +1159,7 @@ function startLine(id){
   shuffle(picks); // 掺入的关打乱到本局各关中任意位置
   const forced=findTryLevel(TRY_LV);
   if(forced) picks[0]=forced;        // ?lv= 直达：固定在开局第一关
-  state={identity:id, level:0, step:0, round:1, steps:null, multi:false, thread:[], leakLevel:0, cleared:0, busted:0, log:[], playlist: picks.map((lv,i)=>({...lv, day:days[i]}))};
+  state={identity:id, level:0, step:0, round:1, steps:null, multi:false, thread:[], leakLevel:0, cleared:0, busted:0, log:[], playlist: picks.map(lv=>({...lv}))};
   pushNav('s-identity');   // 本局只占 1 条历史：从任意一关返回都回首页
   renderLevel();
 }
@@ -1197,9 +1196,9 @@ function renderLevel(){
   state.round=1;
   state.chatH=0;                 // 对话框锁定高度（多轮关卡用）
   state.thread=(norm.steps[0].message||[]).slice();
-  document.getElementById('p-day').textContent='第 '+lv.day+' 天 / 共 21 天';
-  // 刻意不加"演示"标记：评审时应该看到的画面与真实玩家完全一致
-  document.getElementById('scene-label').textContent='第 '+(state.level+1)+' 关 · '+lv.title;
+  document.getElementById('p-day').textContent='第 '+(state.level+1)+' 关 / 共 '+state.playlist.length+' 关';
+  // 场景标签只留标题：进度条已经显示了"第 N 关 / 共 6 关"，这里再写一遍是重复
+  document.getElementById('scene-label').textContent=lv.title;
   // ⚠️ 必须先把屏幕设为可见再 renderStep：多轮关卡要量对话框的自然高度，
   //    而 display:none 的元素 scrollHeight 恒为 0（会锁成 2px 的畸形高度）。
   show('s-story');
@@ -1410,7 +1409,7 @@ function buildNote(){
   const hero=log.find(x=>x.tag==='bad')||log.find(x=>x.tag==='ok')||log[0];
 
   let h='<div class="note-hd"><div class="t">我的防骗笔记</div>'
-      +'<div class="m">'+IDNAME[state.identity]+'线 · '+dateStr+' · 经历了 21 天风险期</div></div>';
+      +'<div class="m">'+IDNAME[state.identity]+'线 · '+dateStr+' · 这一局 '+state.log.length+' 关</div></div>';
 
   h+='<div class="note-stat">'
    +'<div class="ns-ok"><div class="n">'+state.cleared+'</div><div class="l">守住</div></div>'
