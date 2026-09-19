@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>反诈先锋 - 防骗情景模拟</title>
 <meta name="description" content="抽一张身份牌，替爸妈先挡一遍。6个真实骗局，你能替他们挡住几个？中老年/青年/老年三条身份线，情景模拟，非官方产品。">
 <meta name="keywords" content="反诈,防骗,反诈游戏,防骗测试,老年人防骗,养老诈骗,反诈先锋,诈骗话术,家庭防骗">
@@ -191,6 +191,11 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .note-ft .brand{color:var(--lapis);font-weight:800;font-size:13px;}
 /* canvas 生成的笔记图片：长按可存相册 */
 .note-img{display:block;width:100%;height:auto;border-radius:12px;}
+/* 第一关的一次性提示 + 首关复盘的三档说明（沿用笔记页提示条的配色，保持视觉一致） */
+.first-hint{background:#fff8e6;border:1px solid #f0d9a0;color:#8a6a1e;font-size:12.5px;line-height:1.7;padding:10px 12px;border-radius:10px;margin-bottom:12px;}
+.first-hint b{color:#6d5210;}
+.r-tiers{background:#f4f7fb;border:1px solid #dfe7f0;border-left:3px solid var(--lapis2);border-radius:10px;padding:10px 12px;margin-top:12px;font-size:12.5px;line-height:1.75;color:#3d4a58;}
+.r-tiers b{display:block;color:var(--lapis);font-size:11.5px;letter-spacing:1px;margin-bottom:4px;}
 #step-hint{font-size:11.5px;color:rgba(255,255,255,.72);letter-spacing:.3px;}
 /* 多轮关卡的对话框会在框内滚动，给个细滚动条提示"上面还有对话" */
 .chat{scrollbar-width:thin;scrollbar-color:#c4ccd6 transparent;}
@@ -251,6 +256,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
   <section id="s-story" class="screen">
     <div class="progress"><span id="p-day">第 1 关 / 共 6 关</span><span id="step-hint"></span></div>
     <div class="scene-label" id="scene-label">第 1 关 · 冒充客服退款</div>
+    <!-- 新手引导：只在第 1 关出现，且每台设备只显示一次。不做弹窗、不做教程页 —— 一句话 + 后面用实际体验教。 -->
+    <div class="first-hint" id="first-hint" style="display:none">这段对话是真实骗局的还原。<b>你的每句回话都会改变对方接下来怎么说</b> —— 选错不是扣分，是风险真的会累积到后面几关。</div>
     <div class="chat" id="chat"></div>
     <div class="options" id="options"></div>
   </section>
@@ -267,6 +274,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <span id="r-fix-text"></span>
       </div>
       <div class="kp" id="r-kp"></div>
+      <!-- 三档说明：只在"第一次玩"那把的第一次复盘出现，正好在他看到第一个判定的时候解释规则 -->
+      <div class="r-tiers" id="r-tiers" style="display:none"><b>三档判定</b>🛡️ 守住＝真正挡住骗局　⚠️ 中招＝没损失，但被牵着走了　💥 信息泄露＝东西真的出去了（会带到后面几关）</div>
       <button class="btn" id="r-next" onclick="nextLevel()">继续 →</button>
     </div>
   </section>
@@ -290,7 +299,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div><div class="n" id="st-bust">0</div><div class="l">中招关数</div></div>
         <div><div class="n" id="st-leak">0</div><div class="l">泄露次数</div></div>
       </div>
-      <div class="end-rank" id="end-rank"></div>
+      <!-- 默认隐藏：它由异步计数回调填充，若先渲染出来会是一条空白黄条（看起来像坏了）。填好文字再显示。 -->
+      <div class="end-rank" id="end-rank" style="display:none"></div>
       <!-- 防骗性格：原「称号」栏位。先做12题独立测试，测完在这里显示结果 -->
       <div class="pt-box" id="pt-box">
         <div class="pt-box-top">防骗性格</div>
@@ -371,6 +381,7 @@ let currentOpts=[];
    没玩过游戏也能测完再点「返回」进来 —— 这时成绩全是空值，必须靠这个标记把成绩块藏掉。 */
 let hasPlayed=false;
 const SAVE_KEY='reborn_antifraud_v1';
+const HINT_KEY='reborn_af_hint_seen_v1';   // 新手提示每台设备只显示一次（不是每局），尊重回头玩家
 
 /* ---- 评审/调试用直达入口：?lv=关键词 ----
    多轮关卡在 25 关里只占 1 关，中年局抽中概率 = 5/25 = 20%，靠随机很难复现。
@@ -413,11 +424,11 @@ function bumpCount(){
   fetchCount('/hit/'+COUNT_NS+'/'+COUNT_KEY, 6000,
     n=>{ localStorage.setItem(GKEY, String(n)); showCount(n);
          const rank=document.getElementById('end-rank');
-         if(rank) rank.textContent='🔥 恭喜！你是全球第 '+n.toLocaleString('zh-CN')+' 位完成测试的反诈学员'; },
+         if(rank){ rank.textContent='🔥 恭喜！你是全球第 '+n.toLocaleString('zh-CN')+' 位完成测试的反诈学员'; rank.style.display='block'; } },
     ()=>{ const loc=parseInt(localStorage.getItem(LKEY)||'0',10)+1;
           localStorage.setItem(LKEY, String(loc));
           const rank=document.getElementById('end-rank');
-          if(rank) rank.textContent='🔥 你是本机第 '+loc+' 局完成测试（全球统计暂时不可达）'; });
+          if(rank){ rank.textContent='🔥 你是本机第 '+loc+' 局完成测试（全球统计暂时不可达）'; rank.style.display='block'; } });
 }
 
 /* ---- 打败了 X% 的人：按分数段分桶统计，前端算百分位（纯前端，无需后端） ----
@@ -1195,6 +1206,22 @@ function renderLevel(){
   state.step=0;
   state.round=1;
   state.chatH=0;                 // 对话框锁定高度（多轮关卡用）
+  /* 第一关的一次性新手引导。做法刻意保守：
+     ① 只在第 1 关、② 每台设备只显示一次、③ 不做弹窗/教程页，就一句话。
+     规则的另一半放在"首关复盘"里讲 —— 那正好是玩家第一次看到判定徽章的时刻，教学点最准。 */
+  state.showTiers=false;
+  const hintEl=document.getElementById('first-hint');
+  if(hintEl){
+    let seen=false;
+    try{ seen=!!localStorage.getItem(HINT_KEY); }catch(e){}
+    state.showTiers=(state.level===0 && !seen);
+    if(state.showTiers){
+      hintEl.style.display='block';
+      try{ localStorage.setItem(HINT_KEY,'1'); }catch(e){}
+    }else{
+      hintEl.style.display='none';
+    }
+  }
   state.thread=(norm.steps[0].message||[]).slice();
   document.getElementById('p-day').textContent='第 '+(state.level+1)+' 关 / 共 '+state.playlist.length+' 关';
   // 场景标签只留标题：进度条已经显示了"第 N 关 / 共 6 关"，这里再写一遍是重复
@@ -1271,13 +1298,17 @@ function choose(i){
   if(myText) state.thread.push({who:'me',text:myText});
   if(Array.isArray(o.reply)) o.reply.forEach(b=>{ if(b&&b.text) state.thread.push(b); });
   // 还有下一轮 → 继续对话，这一步不判分
-  if(typeof o.next==='number' && state.steps[o.next]){
-    state.step=o.next;
-    state.round++;
-    const nx=state.steps[o.next];
-    if(Array.isArray(nx.message)) nx.message.forEach(b=>{ if(b&&b.text) state.thread.push(b); });
-    renderStep(true);
-    return;
+  if(typeof o.next==='number'){
+    if(state.steps[o.next]){
+      state.step=o.next;
+      state.round++;
+      const nx=state.steps[o.next];
+      if(Array.isArray(nx.message)) nx.message.forEach(b=>{ if(b&&b.text) state.thread.push(b); });
+      renderStep(true);
+      return;
+    }
+    // 数据写错（next 指向不存在的步）时不要静默算错分：把它暴露出来，再按终局处理
+    console.warn('[多轮关卡] 「'+lv.title+'」的选项 next='+o.next+' 不存在（steps 只有 '+state.steps.length+' 步），已按终局处理');
   }
   // ---- 终局：计分 + 复盘 ----
   const tag=['best','ok','bad'].includes(o.tag)?o.tag:'ok';          // 数据写错也不能把游戏搞挂
@@ -1309,6 +1340,9 @@ function choose(i){
     }
   }
   document.getElementById('r-kp').textContent='📌 防骗知识点：'+lv.kp;
+  // 三档说明只在"第一次玩"那把的首关复盘出现（和顶部那条提示配对）
+  const tiersBox=document.getElementById('r-tiers');
+  if(tiersBox) tiersBox.style.display=(state.showTiers && state.level===0)?'block':'none';
   show('s-review');
 }
 
@@ -1319,17 +1353,25 @@ function nextLevel(){
 }
 
 function endGame(){
-  // 单关权重：守住 +20 / 中招 -10 / 泄露 -25（全错最重）
-  // 再按「本局满分 = 关数 × 20」归一化成 100 分制 —— 这样以后调整每局关数时，
-  // 分数体系、等级门槛、百分位那套 0~100 分桶都不用跟着改。
+  // 单关权重：守住 +20 / 中招 +10 / 泄露 0
+  // ⚠️ 「中招(ok)」原来记 -10 —— 结果"一次都没泄露、钱和信息都还在"的玩家也可能得 0 分，
+  //    和 ok 档的定位（差一点出事，不是错误答案）自相矛盾；而且 6 中招与 6 泄露同分，三档在底部塌掉。
+  //    改成不扣分：ok 拿一半分。满分仍是「关数 × 20」归一化到 100。
   const total = state.playlist.length || ROUND;
-  const raw = state.cleared*20 - state.busted*10 - state.leakLevel*25;
-  const sc = Math.max(0, Math.round(raw / (total*20) * 100));
+  const raw = state.cleared*20 + state.busted*10;
+  const sc = Math.min(100, Math.round(raw / (total*20) * 100));
+  // 判定按「实际发生了什么」给，而不是只看分数 —— 这样它和下面那句风险文案永远不会互相打脸
   let title, color, desc;
-  if(sc>=100){title=total+'关全守住';color='var(--gold)';desc='零泄露，骗子没拿到任何可用信息。';}
-  else if(sc>=70){title='守住了大部分';color='var(--lapis2)';desc='有中招，但关键信息没外流。';}
-  else if(sc>=40){title='有失守';color='var(--warn)';desc='踩了坑。信息一旦外流，后续骗局会精准得多。';}
-  else {title='失守较多';color='var(--bad)';desc='这局骗子拿到了不少东西，看下面的复盘点一下漏在哪。';}
+  if(state.leakLevel>0){
+    title='有失守';color='var(--bad)';
+    desc='东西真的出去了。骗子这一局拿到了能用的信息。';
+  }else if(state.cleared===total){
+    title=total+'关全守住';color='var(--gold)';
+    desc='零泄露，骗子没拿到任何可用信息。';
+  }else{
+    title='都挡住了损失';color='var(--lapis2)';
+    desc='钱和信息都还在，但有几关是被牵着走的 —— 骗局没挡住。';
+  }
   document.getElementById('end-title').textContent=title;
   document.getElementById('end-title').style.color=color;
   document.getElementById('end-score').textContent='综合评分 '+sc+' / 100';
@@ -1345,8 +1387,8 @@ function endGame(){
   const keepLine = state.identity==='youth'?'守住钱包，从练手开始。':state.identity==='elder'?'守住棺材本，从练手开始。':'守住养老钱，从练手开始。';
   document.getElementById('sc-desc').textContent=title+' · '+sc+'分 · '+desc+' '+keepLine;
   // shield svg
-  const shieldColor = sc>=100?'#e8b339':sc>=70?'#2c5f8a':sc>=40?'#e6a23c':'#9b1c1c';
-  document.getElementById('end-shield').innerHTML='<svg viewBox="0 0 100 100"><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="'+shieldColor+'" opacity=".18"/><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="none" stroke="'+shieldColor+'" stroke-width="4"/><text x="50" y="58" font-size="34" text-anchor="middle" fill="'+shieldColor+'">'+(sc>=70?'✓':'!')+'</text></svg>';
+  const shieldColor = state.leakLevel>0?'#9b1c1c':(state.cleared===total?'#e8b339':'#2c5f8a');
+  document.getElementById('end-shield').innerHTML='<svg viewBox="0 0 100 100"><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="'+shieldColor+'" opacity=".18"/><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="none" stroke="'+shieldColor+'" stroke-width="4"/><text x="50" y="58" font-size="34" text-anchor="middle" fill="'+shieldColor+'">'+(state.leakLevel>0?'!':'✓')+'</text></svg>';
   if(!TRY_LV) bumpCount();          // 演示局不污染人次统计
   // 结算时重置百分位区块，再异步算（避免显示上一局的残留数字）
   const bb=document.getElementById('beat-box');
