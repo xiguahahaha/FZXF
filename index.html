@@ -367,6 +367,20 @@ let currentOpts=[];
    没玩过游戏也能测完再点「返回」进来 —— 这时成绩全是空值，必须靠这个标记把成绩块藏掉。 */
 let hasPlayed=false;
 const SAVE_KEY='reborn_antifraud_v1';
+
+/* ---- 评审/调试用直达入口：?lv=关键词 ----
+   多轮关卡在 25 关里只占 1 关，中年局抽中概率 = 5/25 = 20%，靠随机很难复现。
+   带上这个参数就把标题匹配到的关卡固定放在第 1 关，方便逐轮检查改动效果。
+   普通玩家不会带这个参数；这种"演示局"也不计入全球人次统计。 */
+const TRY_LV=(function(){
+  try{ return String(new URLSearchParams(location.search||'').get('lv')||'').trim(); }
+  catch(e){ return ''; }
+})();
+function findTryLevel(kw){
+  if(!kw) return null;
+  const all=[].concat(LINE.mid||[], LINE.youth||[], LINE.elder||[]);
+  return all.filter(function(x){ return x && x.title && x.title.indexOf(kw)>=0; })[0] || null;
+}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
 /* ---- 全球人次计数：Abacus 免费计数 API + localStorage 降级 ---- */
@@ -1140,6 +1154,8 @@ function startLine(id){
     picks = shuffle([...(LINE[id]||LINE.mid)]).slice(0,ROUND);
   }
   shuffle(picks); // 掺入的关打乱到本局各关中任意位置
+  const forced=findTryLevel(TRY_LV);
+  if(forced) picks[0]=forced;        // ?lv= 直达：固定在开局第一关
   state={identity:id, level:0, step:0, round:1, steps:null, multi:false, thread:[], leakLevel:0, cleared:0, busted:0, log:[], playlist: picks.map((lv,i)=>({...lv, day:days[i]}))};
   pushNav('s-identity');   // 本局只占 1 条历史：从任意一关返回都回首页
   renderLevel();
@@ -1177,6 +1193,7 @@ function renderLevel(){
   state.round=1;
   state.thread=(norm.steps[0].message||[]).slice();
   document.getElementById('p-day').textContent='第 '+lv.day+' 天 / 共 21 天';
+  // 刻意不加"演示"标记：评审时应该看到的画面与真实玩家完全一致
   document.getElementById('scene-label').textContent='第 '+(state.level+1)+' 关 · '+lv.title;
   renderStep(false);
   show('s-story');
@@ -1305,7 +1322,7 @@ function endGame(){
   // shield svg
   const shieldColor = sc>=100?'#e8b339':sc>=70?'#2c5f8a':sc>=40?'#e6a23c':'#9b1c1c';
   document.getElementById('end-shield').innerHTML='<svg viewBox="0 0 100 100"><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="'+shieldColor+'" opacity=".18"/><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="none" stroke="'+shieldColor+'" stroke-width="4"/><text x="50" y="58" font-size="34" text-anchor="middle" fill="'+shieldColor+'">'+(sc>=70?'✓':'!')+'</text></svg>';
-  bumpCount();
+  if(!TRY_LV) bumpCount();          // 演示局不污染人次统计
   // 结算时重置百分位区块，再异步算（避免显示上一局的残留数字）
   const bb=document.getElementById('beat-box');
   if(bb){ bb.style.display='none'; document.getElementById('beat-fill').style.width='0'; }
