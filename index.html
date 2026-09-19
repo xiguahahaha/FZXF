@@ -192,6 +192,10 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 /* canvas 生成的笔记图片：长按可存相册 */
 .note-img{display:block;width:100%;height:auto;border-radius:12px;}
 #step-hint{font-size:11.5px;color:rgba(255,255,255,.72);letter-spacing:.3px;}
+/* 多轮关卡的对话框会在框内滚动，给个细滚动条提示"上面还有对话" */
+.chat{scrollbar-width:thin;scrollbar-color:#c4ccd6 transparent;}
+.chat::-webkit-scrollbar{width:4px;}
+.chat::-webkit-scrollbar-thumb{background:#c4ccd6;border-radius:2px;}
 .toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:99;display:none;}
 /* 人次统计 */
 .stats-line{text-align:center;margin-top:10px;font-size:13px;color:#666;}
@@ -1191,12 +1195,15 @@ function renderLevel(){
   state.multi=norm.multi;
   state.step=0;
   state.round=1;
+  state.chatH=0;                 // 对话框锁定高度（多轮关卡用）
   state.thread=(norm.steps[0].message||[]).slice();
   document.getElementById('p-day').textContent='第 '+lv.day+' 天 / 共 21 天';
   // 刻意不加"演示"标记：评审时应该看到的画面与真实玩家完全一致
   document.getElementById('scene-label').textContent='第 '+(state.level+1)+' 关 · '+lv.title;
-  renderStep(false);
+  // ⚠️ 必须先把屏幕设为可见再 renderStep：多轮关卡要量对话框的自然高度，
+  //    而 display:none 的元素 scrollHeight 恒为 0（会锁成 2px 的畸形高度）。
   show('s-story');
+  renderStep(false);
 }
 
 /* 渲染当前这一轮：铺出累积的对话流 + 本轮的 3 个选择。
@@ -1209,7 +1216,24 @@ function renderStep(keepScroll){
   let html='';
   (state.thread||[]).forEach(b=>{html+='<div class="bubble '+b.who+'">'+esc(b.text)+'</div>';});
   html+='<div class="clear"></div>';
-  document.getElementById('chat').innerHTML=html;
+  const chatEl=document.getElementById('chat');
+  chatEl.innerHTML=html;
+  /* 多轮关卡：把对话框锁在"第 1 轮的自然高度"，之后各轮在框内滚动。
+     否则框会一轮轮变长、把下面的选项越推越下，原来那种"对话+三个选项一屏看完"的版式就散了。
+     单轮关卡完全不动（不设 maxHeight），保持原有表现。 */
+  if(state.multi){
+    if(!state.chatH){
+      const h=chatEl.scrollHeight;                     // 第 1 轮的自然高度
+      if(h>0) state.chatH=h;                           // 量不到就先不锁，绝不留畸形高度
+    }
+    if(state.chatH){
+      chatEl.style.maxHeight=(state.chatH+2)+'px';
+      chatEl.style.overflowY='auto';
+    }
+  }else{
+    chatEl.style.maxHeight='';
+    chatEl.style.overflowY='';
+  }
   currentOpts = shuffle((st.choices||[]).slice());
   let oh='';
   currentOpts.forEach((o,i)=>{
@@ -1219,11 +1243,13 @@ function renderStep(keepScroll){
   const hint=document.getElementById('step-hint');
   if(hint) hint.textContent = state.multi ? ('对话第 '+state.round+' 轮') : '';
   if(keepScroll){
-    // 多轮推进后，把最新一条气泡滚到顶部，让玩家顺势看到下面新出现的选项
-    const bs=document.querySelectorAll('#chat .bubble');
-    const last=bs[bs.length-1];
-    if(last && last.scrollIntoView) last.scrollIntoView({block:'start'});
-    else window.scrollTo(0,0);
+    // 多轮推进：对话框内滚到最新一条，页面本身回到顶部 —— 版式原地不动，选项始终在视野里
+    window.scrollTo(0,0);
+    const el=document.getElementById('chat');
+    if(el){
+      if(el.scrollTo){ try{ el.scrollTo({top:el.scrollHeight,behavior:'smooth'}); }catch(e){ el.scrollTop=el.scrollHeight; } }
+      else el.scrollTop=el.scrollHeight;
+    }
   }else{
     window.scrollTo(0,0);
   }
