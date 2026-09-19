@@ -191,6 +191,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .note-ft .brand{color:var(--lapis);font-weight:800;font-size:13px;}
 /* canvas 生成的笔记图片：长按可存相册 */
 .note-img{display:block;width:100%;height:auto;border-radius:12px;}
+#step-hint{font-size:11.5px;color:rgba(255,255,255,.72);letter-spacing:.3px;}
 .toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;z-index:99;display:none;}
 /* 人次统计 */
 .stats-line{text-align:center;margin-top:10px;font-size:13px;color:#666;}
@@ -244,7 +245,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 
   <!-- 屏2：剧情 -->
   <section id="s-story" class="screen">
-    <div class="progress"><span id="p-day">第 3 天 / 共 21 天</span></div>
+    <div class="progress"><span id="p-day">第 3 天 / 共 21 天</span><span id="step-hint"></span></div>
     <div class="scene-label" id="scene-label">第 1 关 · 冒充客服退款</div>
     <div class="chat" id="chat"></div>
     <div class="options" id="options"></div>
@@ -1139,32 +1140,76 @@ function startLine(id){
     picks = shuffle([...(LINE[id]||LINE.mid)]).slice(0,ROUND);
   }
   shuffle(picks); // 掺入的关打乱到本局各关中任意位置
-  state={identity:id, level:0, leakLevel:0, cleared:0, busted:0, log:[], playlist: picks.map((lv,i)=>({...lv, day:days[i]}))};
+  state={identity:id, level:0, step:0, round:1, steps:null, multi:false, thread:[], leakLevel:0, cleared:0, busted:0, log:[], playlist: picks.map((lv,i)=>({...lv, day:days[i]}))};
   pushNav('s-identity');   // 本局只占 1 条历史：从任意一关返回都回首页
   renderLevel();
 }
 
+/* ================= 多轮关卡支持 =================
+   老关卡形状 = 「chat 对话 + options 三个终局选项」＝ 单轮；
+   新关卡形状 = steps[]，每一步 3 个选择，选择可带 reply（骗子据此改口）与 next（进入下一步），
+   走到没有 next 的那个选择就是终局，由它的 tag/desc 决定档位与复盘。
+
+   normalizeScenario() 把两种形状统一成 steps，引擎只认一种 ——
+   **所以老的 75 关一行都不用改，仍然是单轮。** */
+function normalizeScenario(lv){
+  const legacy={steps:[{message:(lv&&Array.isArray(lv.chat))?lv.chat:[], choices:[]}], multi:false};
+  try{
+    if(lv && Array.isArray(lv.steps) && lv.steps.length){
+      const steps=lv.steps.filter(s=>s && Array.isArray(s.choices) && s.choices.length);
+      if(steps.length){
+        const hasBranch=steps.some(s=>s.choices.some(c=>typeof c.next==='number'));
+        return {steps:steps, multi:hasBranch};
+      }
+    }
+  }catch(e){ /* 形状不对就退回单轮，宁可少功能也不要白屏 */ }
+  const opts=(lv && Array.isArray(lv.options))?lv.options:[];
+  legacy.steps[0].choices=opts.map(o=>({label:o.label, tag:o.tag, desc:o.desc, verdict:o.verdict, leak:o.leak}));
+  return legacy;
+}
+
 function renderLevel(){
   const lv=state.playlist[state.level];
+  const norm=normalizeScenario(lv);
+  state.steps=norm.steps;
+  state.multi=norm.multi;
+  state.step=0;
+  state.round=1;
+  state.thread=(norm.steps[0].message||[]).slice();
   document.getElementById('p-day').textContent='第 '+lv.day+' 天 / 共 21 天';
   document.getElementById('scene-label').textContent='第 '+(state.level+1)+' 关 · '+lv.title;
-  // chat
+  renderStep(false);
+  show('s-story');
+}
+
+/* 渲染当前这一轮：铺出累积的对话流 + 本轮的 3 个选择。
+   多轮时对话流会一轮轮变长，所以每步整体重绘。
+   注意：这里刻意不渲染 lv.leakExtra —— 一旦泄露，后面几关都弹"骗子补刀"会剧透，
+   等于提前告诉玩家"这是骗局、你的信息泄了"，玩家不用自己判断就能选对。
+   真实世界里骗子也不会先声明自己在补刀，玩家只能靠"对方怎么知道我的私事"自行警觉。 */
+function renderStep(keepScroll){
+  const st=state.steps[state.step];
   let html='';
-  lv.chat.forEach(b=>{html+='<div class="bubble '+b.who+'">'+b.text+'</div>';});
-  // 注意：这里刻意不渲染 lv.leakExtra。
-  // 一旦泄露，后面几关都弹"骗子补刀"会剧透——它等于提前告诉玩家"这是骗局、你的信息泄了"，
-  // 玩家不用自己判断就能选对。真实世界里骗子也不会先声明自己在补刀。
-  // 玩家只能靠"对方怎么知道我的私事"这个异常自行警觉。关卡数据里的 leakExtra 保留备用。
+  (state.thread||[]).forEach(b=>{html+='<div class="bubble '+b.who+'">'+esc(b.text)+'</div>';});
   html+='<div class="clear"></div>';
   document.getElementById('chat').innerHTML=html;
-  // options
-  currentOpts = shuffle([...lv.options]);
+  currentOpts = shuffle((st.choices||[]).slice());
   let oh='';
   currentOpts.forEach((o,i)=>{
-    oh+='<div class="opt" onclick="choose('+i+')">'+o.label+'</div>';
+    oh+='<div class="opt" onclick="choose('+i+')">'+esc(o.label||o.text||'')+'</div>';
   });
   document.getElementById('options').innerHTML=oh;
-  show('s-story');
+  const hint=document.getElementById('step-hint');
+  if(hint) hint.textContent = state.multi ? ('对话第 '+state.round+' 轮') : '';
+  if(keepScroll){
+    // 多轮推进后，把最新一条气泡滚到顶部，让玩家顺势看到下面新出现的选项
+    const bs=document.querySelectorAll('#chat .bubble');
+    const last=bs[bs.length-1];
+    if(last && last.scrollIntoView) last.scrollIntoView({block:'start'});
+    else window.scrollTo(0,0);
+  }else{
+    window.scrollTo(0,0);
+  }
 }
 
 /* 统一术语：守住 / 中招(选错但没全错) / 泄露(全错)。
@@ -1174,28 +1219,48 @@ const VSUB ={safe:'成功守住',risk:'选错了，但没全错',hit:'全错，�
 
 function choose(i){
   const lv=state.playlist[state.level];
-  const o=currentOpts[i];
-  // 兜底：这一关已经答过就不再计分（防连点，也防将来万一能退回已答的关）
-  if(!lv || !o || state.log.length > state.level) return;
+  const st=state.steps && state.steps[state.step];
+  const o=currentOpts && currentOpts[i];
+  // 兜底：这一关已经结算过就不再计分（防连点，也防将来万一能退回已答的关）
+  if(!lv || !st || !o || state.log.length > state.level) return;
+  if(!Array.isArray(state.thread)) state.thread=[];
+  // 玩家这一轮说的话、以及骗子的回应，都进对话流
+  const myText=o.label||o.text||'';            // choices[] 规范里叫 text，兼容两种写法
+  if(myText) state.thread.push({who:'me',text:myText});
+  if(Array.isArray(o.reply)) o.reply.forEach(b=>{ if(b&&b.text) state.thread.push(b); });
+  // 还有下一轮 → 继续对话，这一步不判分
+  if(typeof o.next==='number' && state.steps[o.next]){
+    state.step=o.next;
+    state.round++;
+    const nx=state.steps[o.next];
+    if(Array.isArray(nx.message)) nx.message.forEach(b=>{ if(b&&b.text) state.thread.push(b); });
+    renderStep(true);
+    return;
+  }
+  // ---- 终局：计分 + 复盘 ----
+  const tag=['best','ok','bad'].includes(o.tag)?o.tag:'ok';          // 数据写错也不能把游戏搞挂
+  const verdict=o.verdict || {best:'safe',ok:'risk',bad:'hit'}[tag];
   // 三档互斥：best=守住 / ok=中招(选错但没全错) / bad=泄露(全错的那种)
-  if(o.tag==='best') state.cleared++;
-  else if(o.tag==='bad' || o.leak) state.leakLevel++;
+  if(tag==='best') state.cleared++;
+  else if(tag==='bad' || o.leak) state.leakLevel++;
   else state.busted++;
   // 记账：供结算后的「防骗笔记」逐关回顾
-  state.log.push({title:lv.title, kp:lv.kp, tag:o.tag, verdict:o.verdict, myLabel:o.label, desc:o.desc});
+  state.log.push({title:lv.title, kp:lv.kp, tag:tag, verdict:verdict, myLabel:myText, desc:o.desc});
   // review
   document.getElementById('r-title').textContent='第 '+(state.level+1)+' 关复盘 · '+lv.title;
   const vd=document.getElementById('r-verdict');
-  vd.className='verdict '+o.verdict;
-  vd.textContent=VTEXT[o.verdict]+' · '+VSUB[o.verdict];
-  document.getElementById('r-desc').textContent=o.desc;
-  // 选错时把「正确做法」摆出来。正确项在 currentOpts 里（每关都会打乱，所以要按 tag 找）。
-  // 选对时不显示：上面的 desc 已经解释了为什么这样对、骗子想干什么。
-  const bestOpt=currentOpts.find(x=>x.tag==='best');
+  vd.className='verdict '+verdict;
+  vd.textContent=VTEXT[verdict]+' · '+VSUB[verdict];
+  document.getElementById('r-desc').textContent=o.desc||'';
+  // 选错时把「正确做法」摆出来。
+  //   多轮关卡：优先用该项自带的 guide（"实际遇到该怎么做"，跨轮更完整）
+  //   单轮关卡：用同一步里 best 项的 label（具体动作）—— 与改造前的行为完全一致
+  const bestOpt=(st.choices||[]).find(x=>x.tag==='best');
   const fixBox=document.getElementById('r-fix');
   if(fixBox){
-    if(o.tag!=='best' && bestOpt){
-      document.getElementById('r-fix-text').textContent=bestOpt.label;
+    const fixText=(tag!=='best') ? (o.guide || (bestOpt && (bestOpt.label||bestOpt.text)) || '') : '';
+    if(fixText){
+      document.getElementById('r-fix-text').textContent=fixText;
       fixBox.style.display='block';
     }else{
       fixBox.style.display='none';
