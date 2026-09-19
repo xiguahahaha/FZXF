@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>反诈先锋 - 防骗情景模拟</title>
-<meta name="description" content="抽一张身份牌，替爸妈先挡一遍。6个真实骗局，你能替他们挡住几个？中老年/青年/老年三条身份线，情景模拟，非官方产品。">
+<meta name="description" content="选一张身份牌，替家人先挡一遍。6个真实骗局，在聊天记录里做选择。中年/青年/老年三条身份线，情景模拟，非官方产品。">
 <meta name="keywords" content="反诈,防骗,反诈游戏,防骗测试,老年人防骗,养老诈骗,反诈先锋,诈骗话术,家庭防骗">
 <meta name="author" content="写点知识">
 <meta name="robots" content="index,follow">
@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="反诈先锋">
 <meta property="og:title" content="爸妈的手机里，藏着 6 个骗局">
-<meta property="og:description" content="抽一张身份牌，替爸妈先挡一遍。6个真实骗局，你能替他们挡住几个？">
+<meta property="og:description" content="选一张身份牌，替家人先挡一遍。6个真实骗局，在聊天记录里做选择。">
 <meta property="og:url" content="https://xiguahahaha.github.io/FZXF/">
 <meta property="og:image" content="https://xiguahahaha.github.io/FZXF/assets/share-cover.png">
 <meta property="og:image:width" content="1200">
@@ -21,7 +21,7 @@
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="爸妈的手机里，藏着 6 个骗局">
-<meta name="twitter:description" content="抽一张身份牌，替爸妈先挡一遍。6个真实骗局，你能替他们挡住几个？">
+<meta name="twitter:description" content="选一张身份牌，替家人先挡一遍。6个真实骗局，在聊天记录里做选择。">
 <meta name="twitter:image" content="https://xiguahahaha.github.io/FZXF/assets/share-cover.png">
 <meta name="theme-color" content="#1e3a5f">
 <style>
@@ -100,6 +100,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .share-card .big{font-size:30px;font-weight:900;letter-spacing:1px;}
 .share-card .mid{font-size:14px;opacity:.92;margin-top:8px;line-height:1.7;}
 .share-card .qr{margin-top:14px;font-size:12px;background:rgba(255,255,255,.15);display:inline-block;padding:6px 12px;border-radius:10px;}
+.share-img{display:block;width:100%;height:auto;border-radius:18px;}
 .disclaimer{font-size:11px;color:#9aa5b1;line-height:1.6;text-align:center;margin:14px 0 4px;padding:0 6px;}
 /* 结局页空状态：没玩过游戏就进来时（如直接测完性格点返回），本局成绩全是空值，
    要整块藏掉并改显「去玩」引导，否则顶部是一大片空白 */
@@ -113,11 +114,13 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .end-wrap.no-game .end-rank,
 .end-wrap.no-game .beat,
 .end-wrap.no-game .share-card,
+.end-wrap.no-game #btn-share-save,   /* 没玩过就没有成绩卡，别留一个存不了东西的按钮 */
 .end-wrap.no-game #btn-note{display:none;}
 .end-empty .ee-icon{font-size:40px;line-height:1;margin-bottom:11px;}
 .end-empty .ee-title{font-size:17px;font-weight:800;color:var(--lapis);margin-bottom:8px;}
 .end-empty .ee-sub{font-size:13px;color:#7b8794;line-height:1.72;margin-bottom:16px;}
 .btn.ghost{background:#fff;color:var(--lapis);border:1.5px solid #d5dde7;}
+.pt-btn{min-height:44px;}   /* 点按目标下限（原来只有 37px） */
 /* 防骗笔记（错题本）：白底深字，为截图分享优化 */
 /* 防骗人格卡：MBTI 式结果页，深色高级感 + 分享友好 */
 .persona-card{background:linear-gradient(160deg,#0f2440 0%,#1e3a5f 45%,#2c5f8a 100%);border-radius:18px;padding:26px 20px 22px;color:#fff;box-shadow:0 10px 30px rgba(15,36,64,.28);}
@@ -233,19 +236,19 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
   <!-- 屏1：身份牌 -->
   <section id="s-identity" class="screen active">
     <div class="h-title">反诈先锋</div>
-    <div class="h-sub">抽一张身份牌，替爸妈先挡一遍<br>6 个真实骗局，你能替他们挡住几个？</div>
+    <div class="h-sub">选一张身份牌，替家人先挡一遍<br>6 个真实骗局，在聊天记录里做选择</div>
     <div class="cards">
       <div class="card mid" onclick="startLine('mid')">
         <img src="assets/mid.png" alt="中年人">
-        <h3>中年人</h3><p>守住养老钱</p>
+        <h3>中年人</h3><p>客服退款·刷单·荐股</p>
       </div>
       <div class="card youth" onclick="startLine('youth')">
         <img src="assets/youth.png" alt="青年">
-        <h3>青年人</h3><p>帮父母挡坑</p>
+        <h3>青年人</h3><p>校园贷·裸聊·跑分</p>
       </div>
       <div class="card elder" onclick="startLine('elder')">
         <img src="assets/elder.png" alt="老年">
-        <h3>老年人</h3><p>守住棺材本</p>
+        <h3>老年人</h3><p>冒充孙子·保健品</p>
       </div>
     </div>
     <div class="stats-line">🔥 已有 <b id="visit-num">…</b> 人次完成测试</div>
@@ -300,8 +303,22 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div><div class="n" id="st-leak">0</div><div class="l">泄露次数</div></div>
       </div>
       <!-- 默认隐藏：它由异步计数回调填充，若先渲染出来会是一条空白黄条（看起来像坏了）。填好文字再显示。 -->
+      <!-- 成绩之后的第一个动作：笔记。
+           原来它在 y≈870（首屏之外），而性格测试入口在首屏内 —— 和"第二反应是生成防骗笔记"正好相反。 -->
+      <button class="btn" id="btn-note" onclick="openNote()">📝 生成我的防骗笔记</button>
       <div class="end-rank" id="end-rank" style="display:none"></div>
       <!-- 防骗性格：原「称号」栏位。先做12题独立测试，测完在这里显示结果 -->
+      <div class="beat" id="beat-box" style="display:none">
+        <div class="beat-main" id="beat-main"></div>
+        <div class="beat-bar"><div class="beat-fill" id="beat-fill"></div></div>
+        <div class="beat-sub" id="beat-sub"></div>
+      </div>
+      <div class="share-card">   <!-- 结算成绩卡：canvas 画成图片，长按可保存 -->
+        <div class="big" id="sc-title">反诈先锋</div>
+        <div class="mid" id="sc-desc"></div>
+        <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
+      </div>
+      <button class="btn ghost" id="btn-share-save" onclick="saveShareImage()" style="margin-top:10px">⬇️ 保存成绩卡</button>
       <div class="pt-box" id="pt-box">
         <div class="pt-box-top">防骗性格</div>
         <div class="pt-box-body">
@@ -309,17 +326,6 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
           <button class="btn pt-btn" id="btn-pt-start" onclick="startPTest('s-end')">开始测试 →</button>
         </div>
       </div>
-      <div class="beat" id="beat-box" style="display:none">
-        <div class="beat-main" id="beat-main"></div>
-        <div class="beat-bar"><div class="beat-fill" id="beat-fill"></div></div>
-        <div class="beat-sub" id="beat-sub"></div>
-      </div>
-      <div class="share-card">
-        <div class="big" id="sc-title">反诈先锋</div>
-        <div class="mid" id="sc-desc"></div>
-        <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
-      </div>
-      <button class="btn" id="btn-note" onclick="openNote()">📝 生成我的防骗笔记</button>
       <button class="btn ghost" onclick="restart()">↻ 再玩一局</button>
       <div class="disclaimer">本游戏为情景模拟，「写点知识」出品，非官方产品。文中金额与情节均为虚构设定。</div>
     </div>
@@ -871,6 +877,59 @@ const NC_W=375, NC_PAD=18, NC_INNER=NC_W-NC_PAD*2;
 const NC_LAPIS='#1e3a5f', NC_LAPIS2='#2c5f8a';
 const NC_OK='#67c23a', NC_WARN='#e6a23c', NC_BAD='#e15554';
 
+
+/* ================= 结算页分享卡 canvas 化 =================
+   原来它是一块 DOM：长按只能选中文字、存不成图 —— 三张可分享物里唯独它不能存。
+   现在按同样的做法画成图片再以 <img> 显示，长按即可保存。canvas 不可用时退回 DOM 版。 */
+let shareTitle='', shareDesc='';
+const SC_PAD=18;
+function shareCanvasDataURL(){
+  const W=375, inner=W-SC_PAD*2;
+  const probe=document.createElement('canvas').getContext('2d');
+  const wrap=(font,text,max)=>{ probe.font=font; return pcWrap(probe,text,max); };
+  const BIG='900 30px '+PC_FONT, MID='400 14px '+PC_FONT, QR='400 12px '+PC_FONT;
+  const Lbig=wrap(BIG,shareTitle,inner);
+  const Lmid=wrap(MID,shareDesc,inner);
+  const QRTXT='📌 关注「写点知识」· 下次骗局前先练手';
+  probe.font=QR; const qw=Math.min(inner, probew(probe,QRTXT)+24);
+  const h=22 + Lbig.length*40 + 8 + Lmid.length*24 + 14 + 30 + 22;
+  const cv=document.createElement('canvas');
+  cv.width=Math.ceil(W*PC_SCALE); cv.height=Math.ceil(h*PC_SCALE);
+  const ctx=cv.getContext('2d'); ctx.scale(PC_SCALE,PC_SCALE);
+  const g=ctx.createLinearGradient(0,0,W,h);
+  g.addColorStop(0,'#1e3a5f'); g.addColorStop(1,'#2c5f8a');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,h);
+  let y=22;
+  ctx.font=BIG; ctx.fillStyle='#fff';
+  Lbig.forEach((l,i)=>ctx.fillText(l,SC_PAD,y+i*40+30));
+  y+=Lbig.length*40+8;
+  ctx.font=MID; ctx.fillStyle='rgba(255,255,255,.92)';
+  Lmid.forEach((l,i)=>ctx.fillText(l,SC_PAD,y+i*24+15));
+  y+=Lmid.length*24+14;
+  ctx.fillStyle='rgba(255,255,255,.15)';
+  pcRound(ctx,SC_PAD,y,qw,30,10); ctx.fill();
+  ctx.font=QR; ctx.fillStyle='#fff';
+  ctx.fillText(QRTXT,SC_PAD+12,y+20);
+  return cv.toDataURL('image/jpeg',0.92);
+}
+// 量文字宽度的小工具（probe 上量，别动真实 ctx 的字体）
+function probew(ctx,txt){ return ctx.measureText(txt).width; }
+
+function renderShareCard(){
+  const box=document.querySelector('.share-card');
+  if(!box) return;
+  try{
+    const url=shareCanvasDataURL();
+    box.innerHTML='<img class="share-img" id="share-img" alt="'+esc(shareTitle)+'" src="'+url+'">';
+  }catch(e){
+    // canvas 不可用 → 退回原来的 DOM 版（保持可读，只是存不成图）
+    box.innerHTML='<div class="big">'+esc(shareTitle)+'</div>'+
+      '<div class="mid">'+esc(shareDesc)+'</div>'+
+      '<div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>';
+  }
+}
+function saveShareImage(){ saveCardImage('share-img','我的反诈成绩.jpg'); }
+
 function noteCanvasDataURL(){
   const probe=document.createElement('canvas').getContext('2d');
   const F=(w,s)=>pcFont(w,s);
@@ -1383,9 +1442,10 @@ function endGame(){
   document.getElementById('st-clear').textContent=state.cleared;
   document.getElementById('st-bust').textContent=state.busted;
   document.getElementById('st-leak').textContent=state.leakLevel;
-  document.getElementById('sc-title').textContent='爸妈的手机里，藏着 '+ROUND+' 个骗局';
-  const keepLine = state.identity==='youth'?'守住钱包，从练手开始。':state.identity==='elder'?'守住棺材本，从练手开始。':'守住养老钱，从练手开始。';
-  document.getElementById('sc-desc').textContent=title+' · '+sc+'分 · '+desc+' '+keepLine;
+  shareTitle='爸妈的手机里，藏着 '+ROUND+' 个骗局';
+  const keepLine = state.identity==='youth'?'守住钱包，从练手开始。':state.identity==='elder'?'守住养老钱，从练手开始。':'守住积蓄，从练手开始。';
+  shareDesc=title+' · '+sc+'分 · '+desc+' '+keepLine;
+  renderShareCard();   // 画成图片，长按可保存
   // shield svg
   const shieldColor = state.leakLevel>0?'#9b1c1c':(state.cleared===total?'#e8b339':'#2c5f8a');
   document.getElementById('end-shield').innerHTML='<svg viewBox="0 0 100 100"><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="'+shieldColor+'" opacity=".18"/><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="none" stroke="'+shieldColor+'" stroke-width="4"/><text x="50" y="58" font-size="34" text-anchor="middle" fill="'+shieldColor+'">'+(state.leakLevel>0?'!':'✓')+'</text></svg>';
