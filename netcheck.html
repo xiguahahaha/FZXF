@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>留言墙网络自检</title>
+<style>
+  :root{--bg:#0f1115;--card:#1a1d24;--line:#2a2f3a;--tx:#e8eaed;--dim:#9aa0a6;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24}
+  *{box-sizing:border-box}
+  body{margin:0;padding:20px;background:var(--bg);color:var(--tx);
+       font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:640px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 6px}
+  .sub{color:var(--dim);font-size:14px;margin-bottom:20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+  .row:last-child{margin-bottom:0}
+  .dot{flex:0 0 10px;width:10px;height:10px;border-radius:50%;background:var(--dim);margin-top:8px}
+  .dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}
+  .txt{flex:1;min-width:0}
+  .lbl{font-weight:600}
+  .det{color:var(--dim);font-size:13px;word-break:break-all;margin-top:2px}
+  #verdict{border-radius:12px;padding:18px;font-size:18px;font-weight:700;margin-bottom:16px;border:1px solid var(--line);background:var(--card)}
+  #verdict.ok{border-color:var(--ok);color:var(--ok)}
+  #verdict.bad{border-color:var(--bad);color:var(--bad)}
+  #verdict.warn{border-color:var(--warn);color:var(--warn)}
+  .hint{font-size:15px;font-weight:400;color:var(--tx);margin-top:10px;line-height:1.8}
+  code{background:#000;padding:2px 6px;border-radius:4px;font-size:13px;color:#7dd3fc;word-break:break-all}
+  button{background:#2a2f3a;color:var(--tx);border:0;border-radius:8px;padding:12px 20px;font-size:16px;cursor:pointer;width:100%;margin-top:6px}
+  button:active{background:#3a404d}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>留言墙网络自检</h1>
+  <div class="sub">检查这台设备能不能连上留言墙的后端（Supabase）。在电脑和手机上都打开一次，对比结果。</div>
+
+  <div id="verdict">正在检测…</div>
+  <div class="card" id="steps"></div>
+  <button onclick="location.reload()">重新检测</button>
+
+  <div class="card" style="margin-top:14px">
+    <div class="row"><div class="dot"></div><div class="txt">
+      <div class="lbl">怎么读结果</div>
+      <div class="det">
+        <b>能连上</b>：说明这台设备的网络没问题，留言发不出去是数据库那边还没配好。<br>
+        <b>连不上</b>：说明这台设备的网络<b>解析不了</b>这个域名（常见于国内 DNS 被干扰）。<br>
+        换一个网络（比如手机用流量、或换 Wi-Fi）再测一次，如果两种网络结果不同，就说明是网络环境的问题。
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<script>
+/* 这里写死和后端配置一致的值；只用于连通性判断，不写入任何数据。 */
+var SB_URL = 'https://kgcfzayorjkotmhbhpj.supabase.co';
+var SB_KEY = 'sb_publishable_N4Kx0AGjvdUCK4YzkMX55A_2Kl1e4pe';
+var REF    = SB_URL.replace(/^https?:\/\//,'').replace(/\.supabase\.co.*$/,'');
+
+var steps = [];
+function addDot(cls, label, detail){
+  steps.push({cls:cls, label:label, detail:detail});
+  render();
+}
+function render(){
+  document.getElementById('steps').innerHTML = steps.map(function(s){
+    return '<div class="row"><div class="dot '+s.cls+'"></div><div class="txt">'+
+           '<div class="lbl">'+s.label+'</div>'+
+           (s.detail ? '<div class="det">'+s.detail+'</div>' : '')+
+           '</div></div>';
+  }).join('');
+}
+function verdict(cls, html){
+  var v = document.getElementById('verdict');
+  v.className = cls; v.innerHTML = html;
+}
+
+function probe(url, headers, ms){
+  var ctl = new AbortController();
+  var t = setTimeout(function(){ ctl.abort(); }, ms);
+  var opt = {signal: ctl.signal};
+  if(headers) opt.headers = headers;
+  var t0 = Date.now();
+  return fetch(url, opt).then(function(r){
+    clearTimeout(t);
+    return r.text().then(function(body){
+      return {ok:true, status:r.status, ms:Date.now()-t0, body:body};
+    });
+  }).catch(function(e){
+    clearTimeout(t);
+    return {ok:false, err:(e && e.name) || 'Error', ms:Date.now()-t0};
+  });
+}
+
+(async function(){
+  var H = {apikey:SB_KEY, Authorization:'Bearer '+SB_KEY};
+
+  addDot('', '正在检测…', '目标域名 <code>'+REF+'.supabase.co</code>');
+
+  /* 第 1 步：先证明这台设备本身有网 */
+  var ctrl = await probe('https://www.baidu.com/favicon.ico', null, 8000);
+  var hasNet = ctrl.ok;
+  addDot(hasNet?'ok':'bad',
+         hasNet ? '这台设备有网（对照站点可以访问）' : '这台设备好像连不上外网',
+         hasNet ? ('对照站点 HTTP '+ctrl.status+'，耗时 '+ctrl.ms+'ms') : ('对照站点失败：'+ctrl.err));
+
+  /* 第 2 步：目标后端 */
+  var r = await probe(SB_URL+'/rest/v1/messages?select=id&limit=1', H, 15000);
+
+  if(r.ok){
+    addDot('ok', '能连上留言墙后端', 'HTTP '+r.status+'，耗时 '+r.ms+'ms');
+  } else {
+    addDot('bad', '连不上留言墙后端', '错误类型：'+r.err+'，耗时 '+r.ms+'ms');
+  }
+
+  /* 结论 */
+  if(!hasNet){
+    verdict('bad', '⛔ 这台设备当前连不上外网'+
+      '<div class="hint">留言墙要用到外部服务。请先确认 Wi-Fi / 流量是否正常，'+
+      '再重新检测。</div>');
+    return;
+  }
+
+  if(r.ok){
+    if(r.status === 401 || r.status === 403){
+      verdict('warn', '⚠️ 网络没问题，但后端拒绝了访问'+
+        '<div class="hint">能连上域名，但数据库权限没配好。这属于部署问题，'+
+        '不是网络问题。</div>');
+    } else if(r.status === 404){
+      verdict('warn', '⚠️ 网络没问题，但数据库表还没建'+
+        '<div class="hint">域名能连上、请求也发出去了，只是后端还没有对应的数据表。'+
+        '这属于部署问题：需要在 Supabase 里执行建表 SQL。</div>');
+    } else if(r.status === 200){
+      verdict('ok', '✅ 这台设备完全正常，后端也在正常工作'+
+        '<div class="hint">网络和数据库都通。如果还是发不出留言，'+
+        '请把页面上的报错文字记下来。</div>');
+    } else {
+      verdict('warn', '⚠️ 网络通，后端返回 HTTP '+r.status+
+        '<div class="hint">能连上，但返回了意外的状态码。原始内容：'+
+        '<code>'+(r.body||'').slice(0,200).replace(/[<>]/g,'')+'</code></div>');
+    }
+    return;
+  }
+
+  /* 连不上 → 区分是「解析不了域名」还是「解析了但连不通」 */
+  var dnsish = /TypeError/.test(r.err);
+  verdict('bad', '❌ 这台设备连不上留言墙后端'+
+    '<div class="hint">'+
+    '设备本身有网（对照站点正常），但访问 <code>'+REF+'.supabase.co</code> 失败。'+
+    '最可能的原因是<b>这个域名的解析被干扰了</b> —— 国内网络访问 Supabase 时常出现，'+
+    '表现出来就是「页面能打开，但留言永远发不出去」。'+
+    '<br><br>这种情况换 Wi-Fi 或改用手机流量再测一次，结果可能不同。'+
+    '</div>');
+})();
+</script>
+</body>
+</html>

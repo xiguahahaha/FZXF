@@ -1605,7 +1605,9 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','
 
 const WALL_MAX=200;              // 与 HTML 的 maxlength 保持一致，两处必须同改
 const WALL_COOLDOWN=30000;       // 本地冷却：两次发布之间的最小间隔(ms)
-const WALL_TIMEOUT=9000;         // 国内访问 Supabase 偏慢，给足 9 秒再判超时
+const WALL_TIMEOUT=15000;        // 国内访问 Supabase 偏慢：实测首次请求（含 DNS+TCP+TLS 握手）要约 8.9 秒。
+                                 // 原来给 9000ms 几乎没有余量，冷启动那一次必然被 abort，
+                                 // 表现就是「第一次点发布必定失败、再点一次才可能成功」。给到 15 秒。
 const WALL_LSK='raf_wall_last';  // 上次发布的时间戳（本地冷却用）
 const WALL_FPK='raf_wall_fp';    // 本机匿名指纹（客户端限流用，不含任何个人身份信息）
 
@@ -1618,7 +1620,7 @@ const WALL_FPK='raf_wall_fp';    // 本机匿名指纹（客户端限流用，�
    写成 window.__SB_URL || '...' 而不是裸常量：这样测试可以在运行时注入假值验证
    未配置/已配置两条路径（裸 const 没法覆盖，之前百分位那块已经踩过一次这个坑）。
    运行时想临时换项目时，也可以在控制台先执行 window.__SB_URL='...' 再刷新。 */
-const SB_URL=window.__SB_URL || 'https://kgcfzayorjkotjmhbhbpj.supabase.co';
+const SB_URL=window.__SB_URL || 'https://kgcfzayorjkotmhbhpj.supabase.co';
 const SB_KEY=window.__SB_KEY || 'sb_publishable_N4Kx0AGjvdUCK4YzkMX55A_2Kl1e4pe';
 
 /* 兜底哨兵：万一有人（包括将来的我）把 Secret key 填进了 SB_KEY，
@@ -1795,6 +1797,14 @@ function wallDbError(err){
     // 按 code 判定比按 HTTP status 判定更可靠。
     if(body.code==='P0001'||body.code==='22023') return m.replace(/^.*?:\s*/,'') || '';
     if(body.code==='PGRST') return '现在留言的人有点多，稍等一下再发';
+    // PGRST205 / PGRST202 = 表或函数在数据库里根本不存在。这属于「部署没做完」，
+    // 不是网络问题，也不该让用户反复重试 —— 所以单独给一句明确的话，
+    // 同时在控制台打出完整原因，方便开发者 F12 一眼定位（普通用户看不到，不打扰）。
+    if(body.code==='PGRST205'||body.code==='PGRST202'){
+      console.error('留言墙后端未就绪（'+body.code+'）：'+m+
+        '\n→ 需要在 Supabase 的 SQL Editor 里跑建表 SQL，见 留言墙部署指引.md 第二节。');
+      return '留言功能还在准备中，过阵子再来试试';
+    }
     if(/too fast|太快|rate limit/i.test(m)) return '刚发过一条，休息一下再发吧';
   }catch(e){}
   return '';
