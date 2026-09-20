@@ -115,7 +115,8 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .end-wrap.no-game .beat,
 .end-wrap.no-game .share-card,
 .end-wrap.no-game #btn-share-save,   /* 没玩过就没有成绩卡，别留一个存不了东西的按钮 */
-.end-wrap.no-game #btn-note{display:none;}
+.end-wrap.no-game #btn-note,
+.end-wrap.no-game .wall{display:none;}   /* 没玩过就没资格留言（发帖框要被门槛拦住） */
 .end-empty .ee-icon{font-size:40px;line-height:1;margin-bottom:11px;}
 .end-empty .ee-title{font-size:17px;font-weight:800;color:var(--lapis);margin-bottom:8px;}
 .end-empty .ee-sub{font-size:13px;color:#7b8794;line-height:1.72;margin-bottom:16px;}
@@ -149,6 +150,37 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .beat-bar{height:9px;background:#e8eef5;border-radius:5px;overflow:hidden;margin:10px 0 7px;position:relative;}
 .beat-fill{height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,var(--lapis2),var(--gold));transition:width .9s cubic-bezier(.22,1,.36,1);}
 .beat-sub{font-size:11.5px;color:#8b96a2;line-height:1.6;}
+/* 留言墙：结算页底部，公开可见。
+   与 .beat / .share-card 保持同一套白卡 + 淡阴影语言，不引入新色。 */
+.wall{background:#fff;border-radius:14px;padding:15px 15px 13px;margin:16px 0;text-align:left;box-shadow:0 2px 10px rgba(30,58,95,.07);}
+.wall-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}
+.wall-hd .t{font-size:14.5px;font-weight:800;color:var(--lapis);}
+.wall-hd .t span{font-size:11px;font-weight:400;color:#9aa5b1;margin-left:6px;}
+.wall-form{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+/* 16px 是 iOS Safari 的隐形分界线：小于它就自动放大页面，输入时页面会突然zoom。别改小。 */
+.wall-input,.wall-textarea{width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:16px;
+  font-family:inherit;color:#222;background:#fbfcfe;transition:border-color .15s;}
+.wall-input:focus,.wall-textarea:focus{outline:none;border-color:var(--lapis2);background:#fff;}
+.wall-textarea{min-height:70px;resize:vertical;line-height:1.6;}
+.wall-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.wall-count{font-size:11px;color:#9aa5b1;font-variant-numeric:tabular-nums;}
+.wall-count.over{color:var(--bad);font-weight:700;}
+.wall-btn{background:var(--lapis);color:#fff;border:none;border-radius:10px;padding:0 18px;min-height:40px;
+  font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:.15s;}
+.wall-btn:active{transform:scale(.97);}
+.wall-btn:disabled{background:#c3ccd6;cursor:default;transform:none;}
+/* 留言列表：固定高度 + 内滚，避免几十条留言把结算页拉得极长 */
+.wall-list{max-height:320px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.wall-item{padding:10px 0;border-top:1px solid #eef2f7;}
+.wall-item:first-child{border-top:none;padding-top:2px;}
+.wall-meta{display:flex;align-items:center;gap:7px;font-size:11.5px;color:#9aa5b1;margin-bottom:4px;flex-wrap:wrap;}
+.wall-meta b{color:var(--lapis);font-size:12.5px;font-weight:700;}
+.wall-tag{background:#eef3f9;color:var(--lapis2);border-radius:5px;padding:1px 6px;font-size:10.5px;font-weight:700;white-space:nowrap;}
+.wall-txt{font-size:13.5px;color:#33404d;line-height:1.68;word-break:break-word;white-space:pre-wrap;}
+.wall-msg{font-size:12.5px;color:#9aa5b1;text-align:center;padding:14px 0;line-height:1.7;}
+.wall-foot{text-align:center;margin-top:10px;}
+.wall-foot button{background:none;border:none;color:var(--lapis2);font-size:12.5px;font-family:inherit;cursor:pointer;
+  padding:8px 12px;min-height:44px;}
 .note-paper{background:#fff;border-radius:16px;padding:22px 18px 24px;box-shadow:0 4px 18px rgba(30,58,95,.10);}
 .note-hd{border-bottom:2px solid var(--lapis);padding-bottom:11px;margin-bottom:15px;}
 .note-hd .t{font-size:21px;font-weight:900;color:var(--lapis);letter-spacing:.5px;}
@@ -319,6 +351,28 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
       </div>
       <button class="btn ghost" id="btn-share-save" onclick="saveShareImage()" style="margin-top:10px">⬇️ 保存成绩卡</button>
+      <!-- 留言墙：公开列表，所有人都能看到别人的留言。
+           发言门槛 = 必须先玩过一局（no-game 时整块藏掉），且留言自动带上本局成绩。
+           删除只走后台（前端不持有任何删除凭据），被隐藏的留言前端查不到。 -->
+      <div class="wall" id="wall-box">
+        <div class="wall-hd">
+          <div class="t">留言墙<span>说说你差点被骗的那一次</span></div>
+        </div>
+        <div class="wall-form">
+          <input class="wall-input" id="wall-name" type="text" maxlength="12" placeholder="昵称（可不填，留空就是「匿名学员」）">
+          <textarea class="wall-textarea" id="wall-content" maxlength="200" placeholder="写点什么…（最多 200 字）"></textarea>
+          <div class="wall-row">
+            <div class="wall-count" id="wall-count">0 / 200</div>
+            <button class="wall-btn" id="wall-submit" onclick="submitWall()">发布留言</button>
+          </div>
+        </div>
+        <div class="wall-list" id="wall-list">
+          <div class="wall-msg" id="wall-msg">正在加载留言…</div>
+        </div>
+        <div class="wall-foot">
+          <button type="button" id="wall-refresh" onclick="loadWall(true)">↻ 刷新留言</button>
+        </div>
+      </div>
       <div class="pt-box" id="pt-box">
         <div class="pt-box-top">防骗性格</div>
         <div class="pt-box-body">
@@ -386,6 +440,7 @@ let currentOpts=[];
    结局页(s-end)同时承载「本局成绩」和「防骗性格」两块，而性格测试是独立入口，
    没玩过游戏也能测完再点「返回」进来 —— 这时成绩全是空值，必须靠这个标记把成绩块藏掉。 */
 let hasPlayed=false;
+let lastScore=null;   // 本局得分。留言要自动带上成绩，所以得留一份在全局（endGame 里写入）
 const SAVE_KEY='reborn_antifraud_v1';
 const HINT_KEY='reborn_af_hint_seen_v1';   // 新手提示每台设备只显示一次（不是每局），尊重回头玩家
 
@@ -438,43 +493,100 @@ function bumpCount(){
 }
 
 /* ---- 打败了 X% 的人：按分数段分桶统计，前端算百分位（纯前端，无需后端） ----
-   把分数划成 11 段（0-9 / 10-19 / … / 90-99 / 100），每段一个计数 key：b0 b10 b20 … b100。
+   把分数划成 11 段（0-9 / 10-19 / … / 90-99 / 100），每段一个计数 key：b000 b10 b20 … b100。
    结算时：先把自己 hit 进所在段，再并发 get 全部 11 段，用「低于我的人数 / 总人数」算百分位。
-   写和读共用同一套 key（BUCKETS），避免对不上。 */
+   写和读共用同一套 key（BUCKETS），避免对不上。
+
+   ⚠️ 三处曾经算错，导致「100 分却显示打败 1%、还说这个分数偏低」（2026-09-16 修）：
+   ① 0-9 段的 key 原来是 'b0'，只有 2 个字符 —— Abacus 要求 key 长度 3~64，
+      所以 /hit 和 /get 全部失败：这一档的玩家从上线起就没被统计过。现改为合法的 'b000'。
+      由于旧 key 'b0' 从未写入成功过，没有历史数据需要迁移。
+   ② 分母原来用「能读到的桶之和」——读不到的桶被 `if(n<0) return` 剔掉，
+      线上实测分母只剩 16，而真实完成人次是 38，22 人凭空消失、把比值放大了。
+      现在分母统一用 plays 总人次（和首页那个"第 N 位"同一个计数 key）。
+   ③ lower 的比较方向原来把「和我同档或更高的人」也算进了「比我低的人」：
+      满分时 lower=8（全是 b100 里和自己一样的满分选手），成了自己打败自己。
+      现在只累加严格低于我这一档的分段，满分会把 0/10/…/90 全算进去、不含 b100。
+   另外：样本太小时（plays < 50）百分位没有统计意义，不显示百分位，改给绝对表述。 */
 const BUCKETS=[0,10,20,30,40,50,60,70,80,90,100];
-const bucketKey=sc=>'b'+(sc>=100?100:Math.floor(sc/10)*10);
+// ⚠️ 判据不能写成 sc<=0：那样 1~9 分仍会算出 2 字符的 'b0'，接口照样拒 —— 只修了 0 分那一种。
+//    也不能写成 sc<10：那样 100 分会被误判进 0-9 档，写进最低分段，再也不会出现在 b100 里。
+//    sc>=10 这个分支天然只接住 10~99，100 由内层 sc>=100 兜住，两个坑一起避开。
+const bucketKey=sc=>sc>=10?'b'+Math.floor(sc/10)*10:(sc>=100?'b100':'b000');
+/* 低于这个总人次就不报百分位（样本太少，百分位是噪声）。
+   允许用 ?minsample=N 临时改小，只为在样本还没攒够时能验证百分位那条路径本身；
+   普通玩家不会带这个参数，行为与写死 50 完全一致。 */
+const BEAT_MIN_SAMPLE=(function(){
+  try{
+    const v=parseInt(new URLSearchParams(location.search||'').get('minsample'),10);
+    return (v>0&&v<10000)?v:50;
+  }catch(e){ return 50; }
+})();
 function computeBeat(sc){
   const box=document.getElementById('beat-box');
   if(!box) return;
+  const myFloor=sc>=100?100:Math.floor(sc/10)*10;             // 我这一档的下界
   // 1) 把自己计入所在分段（桶不存在时 Abacus 的 hit 会自动创建；失败静默）
   fetchCount('/hit/'+COUNT_NS+'/'+bucketKey(sc), 6000, ()=>{}, ()=>{});
-  // 2) 并发读回 11 段
-  const got={}; let done=0;
+  // 2) 并发读回 11 段 + 总局数（分母）
+  const got={}; let done=0, plays=-1;
+  let pend=0;
   const finish=()=>{
-    if(done<BUCKETS.length) return;
-    let lower=0, total=0;
-    BUCKETS.forEach(b=>{
-      const n=got[b];
-      if(n===undefined || n<0) return;    // 该段不可达就跳过，别让一个失败拖垮整体
-      total+=n;
-      if(b<Math.floor(sc/10)*10) lower+=n; // 严格低于我的分段
-    });
-    if(total<=0){ box.style.display='none'; return; }
-    const pct=Math.min(99, Math.max(1, Math.round(lower/total*100)));
-    document.getElementById('beat-main').innerHTML='你打败了 <b>'+pct+'%</b> 的玩家';
+    if(pend>0) return;
+    const main=document.getElementById('beat-main');
     const sub=document.getElementById('beat-sub');
+    const bar=document.getElementById('beat-fill');
+    // 总分母不可用（接口挂了）：宁可整块不显示，也不要拿残缺的桶去编一个百分位。
+    // ⚠️ 这里只认 plays，不看桶读到了没有 —— 拿「桶之和」当分母正是这次要修的病：
+    //    读不到的桶会让分母凭空变小（线上 16 vs 真实 38），算出来的名次是残缺统计的产物，
+    //    用它去替代真分母，等于把同一个 bug 换个地方又犯一遍。
+    if(plays<=0){ box.style.display='none'; return; }
+    const denom=plays;
+    // ① 样本不足：百分位没有统计意义，给绝对表述。
+    //    ⚠️ 必须排在满分分支【之前】：满分同样受"样本不足"约束，
+    //    否则 plays 不足 50 时满分玩家看到的是"你打败了…"，回到这次要修的坑里。
+    if(denom<BEAT_MIN_SAMPLE){
+      main.innerHTML=sc>=100?'你拿到满分，是这批玩家里守得最稳的一类'
+                            :'你是第 <b>'+denom.toLocaleString('zh-CN')+'</b> 位完成测试的反诈学员';
+      // 只有一行就够，不再补第二句解释；进度条也没有百分比可画，留空
+      sub.textContent='';
+      box.style.display='block';
+      setTimeout(()=>{ if(bar) bar.style.width='0'; }, 60);
+      return;
+    }
+    // ② 满分：独占一套文案，绝不再走百分位分支（避免满分被说"分数偏低"）
+    if(sc>=100){
+      main.innerHTML='你拿到了满分——骗子这一局<b>空手而归</b>';
+      sub.textContent='这类骗局的每一步都有人中招，你一步没踩进去。';
+      box.style.display='block';
+      setTimeout(()=>{ if(bar) bar.style.width='100%'; }, 60);
+      return;
+    }
+    // ③ 正常：只累加严格低于我这一档的分段（不含我自己那档）
+    let lower=0;
+    BUCKETS.forEach(b=>{
+      if(b>=myFloor) return;
+      const n=got[b];
+      if(n>0) lower+=n;                   // 读不到的按 0 计，不再从分母里剔掉
+    });
+    const pct=Math.min(99, Math.max(1, Math.round(lower/denom*100)));
+    main.innerHTML='你打败了 <b>'+pct+'%</b> 的玩家';
     if(pct>=95) sub.textContent='已进入前 5%，这个分数意味着骗子很难从你身上拿到东西。';
     else if(pct>=80) sub.textContent='已进入前 20%，整体防骗意识在线，个别环节还需再紧一紧。';
     else if(pct>=50) sub.textContent='刚过半，说明不少人比你更容易上当——但你也还有明显的漏洞。';
     else if(pct>=20) sub.textContent='多数玩家在这一局比你守得住。回去看看笔记里标红的那几条。';
     else sub.textContent='这个分数偏低了。别灰心，骗局本就是照着人性的弱点设计的，练过就不一样。';
     box.style.display='block';
-    setTimeout(()=>{ const f=document.getElementById('beat-fill'); if(f) f.style.width=pct+'%'; }, 60);
+    setTimeout(()=>{ if(bar) bar.style.width=pct+'%'; }, 60);
   };
+  const tick=()=>{ done++; pend--; finish(); };
+  // 1 个 plays + 11 个桶
+  pend=1+BUCKETS.length;
+  fetchCount('/get/'+COUNT_NS+'/'+COUNT_KEY, 5000, n=>{ plays=n; tick(); }, ()=>{ plays=-1; tick(); });
   BUCKETS.forEach(b=>{
     fetchCount('/get/'+COUNT_NS+'/'+bucketKey(b), 5000,
-      n=>{ got[b]=n; done++; finish(); },
-      ()=>{ got[b]=-1; done++; finish(); });
+      n=>{ got[b]=n; tick(); },
+      ()=>{ got[b]=-1; tick(); });
   });
 }
 
@@ -1451,9 +1563,18 @@ function endGame(){
   document.getElementById('end-shield').innerHTML='<svg viewBox="0 0 100 100"><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="'+shieldColor+'" opacity=".18"/><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="none" stroke="'+shieldColor+'" stroke-width="4"/><text x="50" y="58" font-size="34" text-anchor="middle" fill="'+shieldColor+'">'+(state.leakLevel>0?'!':'✓')+'</text></svg>';
   if(!TRY_LV) bumpCount();          // 演示局不污染人次统计
   // 结算时重置百分位区块，再异步算（避免显示上一局的残留数字）
+  // ⚠️ 文案也要一起清：只把块 display:none 是不够的 —— 如果这一局接口不可达，
+  //    computeBeat 会直接 return（保持隐藏），上一局那句"你打败了 X%"就留在 DOM 里。
+  //    平时看不见，但截屏/选中/无障碍朗读都会把它带出来。清空才是真的干净。
   const bb=document.getElementById('beat-box');
-  if(bb){ bb.style.display='none'; document.getElementById('beat-fill').style.width='0'; }
+  if(bb){
+    bb.style.display='none';
+    const bm=document.getElementById('beat-main'); if(bm) bm.innerHTML='';
+    const bs=document.getElementById('beat-sub'); if(bs) bs.textContent='';
+    const bf=document.getElementById('beat-fill'); if(bf) bf.style.width='0';
+  }
   computeBeat(sc);
+  lastScore = sc;      // 留言要自动带上本局成绩，存一份给 submitWall 用
   hasPlayed=true;      // 这一局有成绩了：结局页退出空状态（必须放在 show 之前）
   syncEndEmpty();
   show('s-end');
@@ -1464,6 +1585,230 @@ const IDNAME={youth:'青年',mid:'中年',elder:'老年'};
 const BDTEXT={best:'🛡️ 守住',ok:'⚠️ 中招',bad:'💥 泄露'};
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ================= 留言墙 =================
+   公开列表，任何访客都能看；发言要先玩过一局，且留言自动带上本局成绩。
+
+   后端用 Supabase（PostgREST 直连，纯前端调用，不需要服务端）。
+   ⚠️ 三层必须同时成立，少一层就等于把数据库开放给全互联网：
+     ① 表上 enable row level security
+     ② 只 grant select / insert 给 anon（**revoke delete、且绝不建 delete 策略**）
+     ③ 前端只查 is_hidden=eq.false，被后台隐藏的留言前端根本拿不到
+   前端这里没有、也不该有任何删除能力 —— 作者删留言只在 Supabase 后台做。
+
+   ⚠️ 表里没有 UPDATE 策略 + 没 grant update，所以「先 insert 再把 content 改成广告」这条路也堵死了。
+
+   内容风控是「前端挡体验 + 数据库挡规则 + 人工做兜底」：
+     前端：关键词过滤 + 30 秒本地冷却（挡手滑和连点）
+     RPC ：client_fp 指纹限流（挡换浏览器/清缓存绕过本地冷却）
+     人工：is_hidden（挡一切漏网的）—— 这也是唯一的兜底手段，务必定期看一眼后台。 */
+
+const WALL_MAX=200;              // 与 HTML 的 maxlength 保持一致，两处必须同改
+const WALL_COOLDOWN=30000;       // 本地冷却：两次发布之间的最小间隔(ms)
+const WALL_TIMEOUT=9000;         // 国内访问 Supabase 偏慢，给足 9 秒再判超时
+const WALL_LSK='raf_wall_last';  // 上次发布的时间戳（本地冷却用）
+const WALL_FPK='raf_wall_fp';    // 本机匿名指纹（客户端限流用，不含任何个人身份信息）
+
+/* Supabase 连接信息。部署时把这两个常量换成你自己的项目值即可 —— 
+   SB_URL 形如 https://xxxxxxxx.supabase.co（结尾不要带斜杠）
+   SB_KEY 用 Settings → API Keys 里的 Publishable key（sb_publishable_… 开头）
+   ⚠️ 这个 key 是设计上就要发到浏览器的公开 key，安全全靠上面的 RLS + grants。
+   绝不要把 service_role / secret key 填进来 —— 那个能绕过全部 RLS，等于把数据库交出去。
+
+   写成 window.__SB_URL || '...' 而不是裸常量：这样测试可以在运行时注入假值验证
+   未配置/已配置两条路径（裸 const 没法覆盖，之前百分位那块已经踩过一次这个坑）。
+   运行时想临时换项目时，也可以在控制台先执行 window.__SB_URL='...' 再刷新。 */
+const SB_URL=window.__SB_URL || 'https://kgcfzayorjkotjmhbhbpj.supabase.co';
+const SB_KEY=window.__SB_KEY || 'sb_publishable_N4Kx0AGjvdUCK4YzkMX55A_2Kl1e4pe';
+
+/* 兜底哨兵：万一有人（包括将来的我）把 Secret key 填进了 SB_KEY，
+   这一段会立刻在控制台炸出来，而不是安静地把数据库交出去。
+   —— 这个检查写在这里是因为它必须**跟着代码走**：部署指引里的红字警告会被忘，
+   代码里的断言不会。Secret key 一旦进了前端，任何访客按 F12 就能拿到，
+   绕过全部 RLS，能删库。这件事没有"小心一点"的余地。 */
+(function(){
+  var bad=/^sb_secret_|service_role|^eyJ[A-Za-z0-9_-]{10,}\./;
+  if(bad.test(String(SB_KEY))){
+    console.error('%c⛔ 停止：SB_KEY 里填的是 Secret key / service_role！',
+      'color:#fff;background:#c0392b;padding:6px 10px;font-size:14px;font-weight:bold');
+    console.error('这个 key 会绕过所有 RLS 规则，任何访客都能读取、修改、删除整个数据库。');
+    console.error('立刻去 Supabase → Settings → API Keys 撤销它，然后改填 Publishable key（sb_publishable_ 开头）。');
+    console.error('留言墙已自动停用，不会发出任何请求。');
+    window.__SB_LEAKED=true;   // wallReady() 见到它就拒绝工作
+  }
+})();
+
+function wallReady(){ return !!(SB_URL && SB_KEY) && !window.__SB_LEAKED; }
+
+/* 本机匿名指纹：随机生成一串存本地，只用来在数据库侧数「这台设备发过几条」。
+   不含 IP、不含设备型号、不含任何可反查到人的东西 —— 换浏览器/清缓存就会变，这是刻意的：
+   它不是防坏人的（防不住），是给正常人「手滑连发十条」上一层刹车的。 */
+function wallFp(){
+  let v='';
+  try{ v=localStorage.getItem(WALL_FPK)||''; }catch(e){}
+  if(!v){
+    v='w'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+    try{ localStorage.setItem(WALL_FPK,v); }catch(e){}
+  }
+  return v;
+}
+
+/* 一批基础关键词。这里只挡最脏、最容易直接冒出来的那一类 ——
+   关键词过滤天然挡不住变体（「加 薇」「V : xin」），所以它只是第一层，
+   真正的兜底是后台的 is_hidden。别指望这个数组能解决审核问题。 */
+const WALL_BAN=['加微信','加薇','微信代','刷单','兼职日结','点击链接','私聊','博彩','赌博','菠菜',
+                '色情','约炮','代开发票','办证','贷款秒批','无抵押','高利贷','枪支','毒品','冰毒',
+                '傻子','弱智','去死','妈的','操你','傻逼','垃圾游戏','骗子游戏'];
+
+function wallCheck(txt){
+  const low=txt.toLowerCase().replace(/\s+/g,'');
+  for(let i=0;i<WALL_BAN.length;i++){
+    if(low.indexOf(WALL_BAN[i].toLowerCase())>=0) return WALL_BAN[i];
+  }
+  // 连串重复字符（刷屏）
+  if(/(.)\1{9,}/.test(txt)) return '重复字符';
+  // 纯链接/纯数字（广告与灌水）
+  if(/^[0-9\s\-+，,。.]{6,}$/.test(txt)) return '纯号码';
+  if(/https?:\/\/|www\.|\.com|\.cn\/|\.[a-z]{2,}\//i.test(txt)) return '外链';
+  return '';
+}
+
+function wallTime(ts){
+  const d=new Date(ts);
+  const p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+/* 统一的后端请求封装：带超时，避免国内网络下用户对着转圈干等 */
+function sbFetch(path, opts, cb){
+  if(!wallReady()){ cb('noconf'); return; }
+  const ctl=new AbortController();
+  const t=setTimeout(()=>ctl.abort(), WALL_TIMEOUT);
+  const o=Object.assign({signal:ctl.signal}, opts||{});
+  o.headers=Object.assign({'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'}, o.headers||{});
+  fetch(SB_URL.replace(/\/+$/,'')+path, o)
+    .then(r=>{ clearTimeout(t);
+      if(!r.ok) return r.text().then(txt=>{ throw {code:r.status, body:txt}; });
+      return r.text().then(txt=>{ let j=null; try{ j=txt?JSON.parse(txt):null; }catch(e){} return j; });
+    })
+    .then(j=>cb(null,j))
+    .catch(e=>cb(e && e.name==='AbortError' ? 'timeout' : (e||'fail')));
+}
+
+const WALL_MSG_ERR={ timeout:'网络有点慢，留言没发出去，稍后再试', noconf:'留言墙还没开放呢', fail:'发布失败，稍后再试',
+                     cooldown:'刚发过一条，休息一下再发吧' };
+
+function wallMsg(text, cls){
+  const box=document.getElementById('wall-list');
+  if(box) box.innerHTML='<div class="wall-msg"'+(cls?' style="color:'+cls+'"':'')+'>'+esc(text)+'</div>';
+}
+
+/* 渲染一条留言。昵称与正文一律走 esc()，绝不拼原始字符串——
+   否则有人发个 <script> 或者 <img onerror> 就成了储存型 XSS，还挂在所有访客的页面上。 */
+function wallItemHTML(m){
+  const who=m.nickname ? esc(m.nickname) : '匿名学员';
+  const idn=IDNAME[m.identity]||'';
+  const tag=(idn||m.score!=null) ? '<span class="wall-tag">'+(idn?idn+'线 · ':'')+
+              (m.score!=null?Number(m.score)+'分':'')+'</span>' : '';
+  return '<div class="wall-item"><div class="wall-meta"><b>'+who+'</b>'+tag+
+         '<span>'+wallTime(m.created_at)+'</span></div>'+
+         '<div class="wall-txt">'+esc(m.content)+'</div></div>';
+}
+
+function loadWall(manual){
+  if(!wallReady()){ wallMsg('留言墙还没开放呢'); return; }
+  if(manual) wallMsg('正在刷新…');
+  // 只取没被隐藏的；新到旧；最多 50 条（前端不做分页，量大了再加）
+  sbFetch('/rest/v1/messages?select=id,created_at,nickname,content,score,identity'+
+          '&is_hidden=eq.false&order=created_at.desc&limit=50', {method:'GET'}, (err,rows)=>{
+    if(err){ wallMsg(err==='timeout'?'网络有点慢，留言没加载出来':'留言加载失败，稍后再试'); return; }
+    if(!rows || !rows.length){ wallMsg('还没有人留言，来当第一个吧'); return; }
+    const box=document.getElementById('wall-list');
+    if(box) box.innerHTML=rows.map(wallItemHTML).join('');
+  });
+}
+
+/* 乐观 UI：先在本地把这条渲染出来，再去后台写。
+   理由是国内访问 Supabase 有几百毫秒延迟 —— 等回来再渲染，用户会觉得「点了没反应」。
+   写失败就把这条撤回（重新拉一遍列表），不留假数据。 */
+function submitWall(){
+  if(!wallReady()){ toast('留言墙还没开放'); return; }
+  if(!hasPlayed){ toast('先玩一局再来留言吧'); return; }   // 门槛：没成绩不许发言
+  const el=document.getElementById('wall-content');
+  const nEl=document.getElementById('wall-name');
+  const btn=document.getElementById('wall-submit');
+  const txt=(el?el.value:'').trim();
+  if(!txt){ toast('先写点什么吧'); return; }
+  if(txt.length>WALL_MAX){ toast('太长了，最多 '+WALL_MAX+' 字'); return; }
+  const bad=wallCheck(txt);
+  if(bad){ toast('这句话里有不适合发布的内容（'+bad+'）'); return; }
+  // 本地冷却
+  let last=0;
+  try{ last=parseInt(localStorage.getItem(WALL_LSK)||'0',10)||0; }catch(e){}
+  if(Date.now()-last < WALL_COOLDOWN){ toast('刚发过一条，休息一下再发吧'); return; }
+
+  const nick=((nEl?nEl.value:'').trim()||'').slice(0,12);
+  const payload={nickname:nick, content:txt, score:lastScore,
+                 identity:state.identity, client_fp:wallFp()};
+
+  if(btn){ btn.disabled=true; btn.textContent='发布中…'; }
+  const re=()=>{ if(btn){ btn.disabled=false; btn.textContent='发布留言'; } };
+
+  // 走 RPC 而不是直接 POST 表：限流逻辑必须放在数据库侧，
+  // 前端算的冷却改个 localStorage 就绕过了，只有 RPC 里的计数才算数。
+  sbFetch('/rest/v1/rpc/post_message', {method:'POST', body:JSON.stringify(payload)}, (err)=>{
+    re();
+    if(err){
+      // ⚠️ 限流是 RPC 里 raise exception 抛出来的，PostgREST 会把它包成 HTTP 400 +
+      //    {code:'P0001', message:'...'}。所以不能只看 429 —— 那永远等不到。
+      //    这里直接读数据库给的中文提示，比自己编一套错误映射更准。
+      const dbMsg=wallDbError(err);
+      if(dbMsg){ toast(dbMsg); return; }
+      toast(WALL_MSG_ERR[err]||WALL_MSG_ERR[err.code]||'发布失败，稍后再试');
+      return;
+    }
+    try{ localStorage.setItem(WALL_LSK, String(Date.now())); }catch(e){}
+    if(el) el.value='';
+    wallCount();
+    toast('留言已发布，谢谢你');
+    loadWall();          // 重新拉，确保看到的是数据库里的真实内容（含超时被截断的）
+  });
+}
+
+/* 从 PostgREST 的错误体里抠出数据库那句人话提示。
+   错误码有几类，别只认 400：
+     400 = 校验或限流没过（我们自己 raise 的 P0001/22023 就在这里）
+     401/403 = 权限没配对（部署错了，只有开发者会碰上）
+     429/420 = Supabase 平台层的速率限制（免费版 500 RPM）。
+               注意这是**平台**限流，不是我们 RPC 里那个指纹限流 ——
+               两者要分开提示，否则用户会以为是自己发太快。
+     PGRST = Supabase 官方文档里限流的写法（raise sqlstate 'PGRST'），会落在 420/429。 */
+function wallDbError(err){
+  if(err==='timeout'||err==='noconf') return '';
+  if(err.code===401||err.code===403) return '留言暂时发不出去（服务端权限没配好）';
+  if(err.code===429||err.code===420) return '现在留言的人有点多，稍等一下再发';
+  try{
+    const body=JSON.parse(err.body||'{}');
+    const m=String(body.message||'');
+    // P0001/22023 是 raise exception 抛的业务提示，本来就是写给人看的中文，直接用。
+    // 不在这里限定 status —— 有的网关会把 raise exception 包成 4xx 的其他码，
+    // 按 code 判定比按 HTTP status 判定更可靠。
+    if(body.code==='P0001'||body.code==='22023') return m.replace(/^.*?:\s*/,'') || '';
+    if(body.code==='PGRST') return '现在留言的人有点多，稍等一下再发';
+    if(/too fast|太快|rate limit/i.test(m)) return '刚发过一条，休息一下再发吧';
+  }catch(e){}
+  return '';
+}
+
+function wallCount(){
+  const el=document.getElementById('wall-content');
+  const c=document.getElementById('wall-count');
+  if(!el||!c) return;
+  const n=el.value.length;
+  c.textContent=n+' / '+WALL_MAX;
+  // 用 classList.toggle 而不是重写 className：后者会把这条 div 上任何别的类一起清掉
+  c.classList.toggle('over', n>WALL_MAX);
+}
 
 function noteItem(x,showMy){
   const cls=x.tag==='bad'?'wrong':(x.tag==='ok'?'warn':'');
