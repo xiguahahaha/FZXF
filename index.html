@@ -1620,7 +1620,7 @@ const WALL_FPK='raf_wall_fp';    // 本机匿名指纹（客户端限流用，�
    写成 window.__SB_URL || '...' 而不是裸常量：这样测试可以在运行时注入假值验证
    未配置/已配置两条路径（裸 const 没法覆盖，之前百分位那块已经踩过一次这个坑）。
    运行时想临时换项目时，也可以在控制台先执行 window.__SB_URL='...' 再刷新。 */
-const SB_URL=window.__SB_URL || 'https://kgcfzayorjkotmhbhpj.supabase.co';
+const SB_URL=window.__SB_URL || 'https://kgcfzayorjkotjmhbhpj.supabase.co';
 const SB_KEY=window.__SB_KEY || 'sb_publishable_N4Kx0AGjvdUCK4YzkMX55A_2Kl1e4pe';
 
 /* 兜底哨兵：万一有人（包括将来的我）把 Secret key 填进了 SB_KEY，
