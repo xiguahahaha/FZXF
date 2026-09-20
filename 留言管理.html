@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>留言管理后台</title>
+<style>
+  :root{--lapis:#1e3a5f;--lapis2:#2c5282;--bg:#f4f6f9;--card:#fff;--line:#e3e8ee;--tx:#25313f;--dim:#7b8794;--ok:#0f9d58;--bad:#d93025;--warn:#e37400}
+  *{box-sizing:border-box}
+  body{margin:0;padding:18px;background:var(--bg);color:var(--tx);
+       font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:21px;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input,select{flex:1;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit}
+  button{padding:9px 16px;border:0;border-radius:8px;background:var(--lapis);color:#fff;font-size:14px;cursor:pointer;font-family:inherit}
+  button:hover{background:var(--lapis2)}
+  button.ghost{background:#fff;color:var(--lapis);border:1.5px solid #d5dde7}
+  button.danger{background:var(--bad)}
+  button.small{padding:5px 11px;font-size:13px}
+  button:disabled{opacity:.45;cursor:default}
+  .st{font-size:13px;padding:2px 8px;border-radius:20px;background:#eef2f7;color:var(--dim)}
+  .st.ok{background:#e6f4ea;color:var(--ok)}
+  .st.bad{background:#fce8e6;color:var(--bad)}
+  .msg{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:#fff}
+  .msg.hidden{background:#fafbfc;opacity:.62;border-style:dashed}
+  .msg-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
+  .who{font-weight:700}
+  .meta{font-size:12px;color:var(--dim)}
+  .txt{white-space:pre-wrap;word-break:break-word;margin:6px 0 10px;font-size:14.5px}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;background:#eef2f7;color:var(--dim);margin-left:6px}
+  .tag.hid{background:#fdecef;color:var(--bad)}
+  .acts{display:flex;gap:8px;flex-wrap:wrap}
+  .empty{text-align:center;color:var(--dim);padding:26px 0}
+  .hint{font-size:13px;color:var(--dim);line-height:1.75;margin-top:8px}
+  .hint code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .warnbox{background:#fff8e6;border:1px solid #ffe08a;border-radius:10px;padding:12px;font-size:13px;line-height:1.75;margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>留言管理后台</h1>
+  <div class="sub">反诈先锋 · 本地工具。只在你自己的电脑上打开，不要上传到任何公开的地方。</div>
+
+  <div class="warnbox">
+    ⚠️ 下面要填的是 Supabase 的 <b>Secret key</b>（<code>sb_secret_…</code> 或旧版 <code>service_role</code>）。
+    它是<b>全权限</b>凭据，能绕过所有安全规则读写整个数据库。
+    <label style="display:block;margin-top:6px">
+      <input type="checkbox" id="remember"> 记住它（存本机浏览器，下次不用重输 —— 只在自己的电脑上勾）
+    </label>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <input type="password" id="key" placeholder="粘贴 Supabase Secret key（sb_secret_… 或 service_role 的 JWT）">
+      <button id="connect">连接</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span class="st" id="status">未连接</span>
+      <button class="ghost small" id="reload" disabled>↻ 刷新列表</button>
+      <button class="ghost small" id="forget">清除已保存的 key</button>
+    </div>
+    <div class="hint">
+      在哪里找：Supabase 控制台 → <b>Settings → API Keys</b> → <b>Secret keys</b>。
+      <br>数据库地址固定为 <code id="urlhint">…</code>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div><b>留言列表</b> <span class="st" id="count">0 条</span></div>
+      <div class="row">
+        <label class="meta"><input type="checkbox" id="showhidden" checked style="min-width:auto;flex:none"> 显示已隐藏</label>
+      </div>
+    </div>
+  </div>
+
+  <div id="list"><div class="empty">连上之后这里会列出所有留言。</div></div>
+</div>
+
+<script>
+/* 这两行从 index.html 同步而来，改 index.html 时记得一起改。
+   （重构时若能抽成共用配置最好。） */
+var SB_REF = 'kgcfzayorjkotjmhbhpj';
+var SB_URL_CANDIDATES = ['https://' + SB_REF + '.supabase.co'];
+
+var KEY_LS = 'raf_admin_key';
+var SB = null, ALL = [];
+
+function $(i){ return document.getElementById(i); }
+function setStatus(t, cls){
+  var e = $('status');
+  e.textContent = t;
+  e.className = 'st' + (cls ? ' ' + cls : '');
+}
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function fmt(iso){
+  try{
+    var d = new Date(iso);
+    var p = function(n){ return n < 10 ? '0' + n : n; };
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + ' ' +
+           p(d.getHours()) + ':' + p(d.getMinutes());
+  }catch(e){ return iso; }
+}
+
+/* 统一请求：service_role 会绕过 RLS，所以能读到 is_hidden=true 的行 */
+function api(method, path, body){
+  var h = { apikey: SB.key, Authorization: 'Bearer ' + SB.key, 'Content-Type': 'application/json' };
+  if (method === 'GET' && /select=/.test(path)) h['Prefer'] = 'count=exact';
+  return fetch(SB.url + path, {
+    method: method,
+    headers: h,
+    body: body ? JSON.stringify(body) : undefined
+  }).then(function(r){
+    return r.text().then(function(t){
+      if (!r.ok) throw { code: r.status, body: t };
+      try { return t ? JSON.parse(t) : null; } catch(e){ return null; }
+    });
+  });
+}
+
+function load(){
+  setStatus('读取中…');
+  api('GET', '/rest/v1/messages?select=id,created_at,nickname,content,score,identity,is_hidden,client_fp&order=created_at.desc&limit=200')
+    .then(function(rows){
+      ALL = rows || [];
+      $('reload').disabled = false;
+      setStatus('已连接', 'ok');
+      render();
+    })
+    .catch(function(e){
+      var m = String(e && e.body || e);
+      if (e && (e.code === 401 || e.code === 403)) {
+        setStatus('key 无效或被拒', 'bad');
+        $('list').innerHTML = '<div class="card"><b style="color:#d93025">鉴权失败</b>' +
+          '<div class="hint">HTTP ' + e.code + '：' + esc(m.slice(0, 200)) +
+          '<br><br>确认粘的是 <b>Secret key</b>（不是 Publishable key）。' +
+          'Secret key 是 <code>sb_secret_…</code>，而页面里那个 <code>sb_publishable_…</code> 只有只读权限，删不了东西。</div></div>';
+      } else {
+        setStatus('读取失败', 'bad');
+        $('list').innerHTML = '<div class="card">' + esc(m.slice(0, 300)) + '</div>';
+      }
+    });
+}
+
+function render(){
+  var showHid = $('showhidden').checked;
+  var rows = ALL.filter(function(m){ return showHid ? true : !m.is_hidden; });
+  $('count').textContent = rows.length + ' / 共 ' + ALL.length + ' 条';
+  if (!rows.length) {
+    $('list').innerHTML = '<div class="card"><div class="empty">' +
+      (ALL.length ? '都被过滤掉了（隐藏了 ' + ALL.length + ' 条）' : '还没有留言') + '</div></div>';
+    return;
+  }
+  $('list').innerHTML = rows.map(function(m){
+    var idn = { youth:'青年线', mid:'中年线', elder:'老年线' }[m.identity] || '';
+    return '<div class="msg' + (m.is_hidden ? ' hidden' : '') + '">' +
+      '<div class="msg-hd"><div>' +
+        '<span class="who">' + esc(m.nickname || '匿名学员') + '</span>' +
+        (idn || m.score != null ? '<span class="tag">' + esc(idn) + (m.score != null ? ' · ' + m.score + '分' : '') + '</span>' : '') +
+        (m.is_hidden ? '<span class="tag hid">已隐藏</span>' : '') +
+        '<div class="meta">#' + m.id + ' · ' + fmt(m.created_at) + '</div>' +
+      '</div></div>' +
+      '<div class="txt">' + esc(m.content) + '</div>' +
+      '<div class="acts">' +
+        '<button class="ghost small" onclick="toggleHide(' + m.id + ',' + (m.is_hidden ? 'false' : 'true') + ')">' +
+          (m.is_hidden ? '重新显示' : '隐藏') + '</button>' +
+        '<button class="danger small" onclick="delMsg(' + m.id + ')">彻底删除</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function toggleHide(id, toHidden){
+  setStatus('处理中…');
+  api('PATCH', '/rest/v1/messages?id=eq.' + id, { is_hidden: toHidden })
+    .then(function(){ load(); })
+    .catch(function(e){ alert('操作失败：' + String(e && e.body || e).slice(0, 200)); setStatus('操作失败', 'bad'); });
+}
+
+function delMsg(id){
+  if (!confirm('彻底删除 #' + id + '？\n\n这个操作不可恢复。\n如果只是不想让人看到，建议用「隐藏」。')) return;
+  setStatus('删除中…');
+  api('DELETE', '/rest/v1/messages?id=eq.' + id)
+    .then(function(){ load(); })
+    .catch(function(e){ alert('删除失败：' + String(e && e.body || e).slice(0, 200)); setStatus('删除失败', 'bad'); });
+}
+
+function connect(){
+  var k = $('key').value.trim();
+  if (!k) { alert('先把 Secret key 粘进来'); return; }
+  if (/^sb_publishable_/.test(k)) {
+    alert('这是 Publishable key，只有只读权限，无法隐藏或删除留言。\n\n请到 Supabase → Settings → API Keys → Secret keys 复制 Secret key。');
+    return;
+  }
+  SB = { key: k, url: SB_URL_CANDIDATES[0] };
+  if ($('remember').checked) { try { localStorage.setItem(KEY_LS, k); } catch(e){} }
+  else { try { localStorage.removeItem(KEY_LS); } catch(e){} }
+  load();
+}
+
+$('connect').onclick = connect;
+$('reload').onclick = load;
+$('showhidden').onchange = render;
+$('forget').onclick = function(){
+  try { localStorage.removeItem(KEY_LS); } catch(e){}
+  $('key').value = '';
+  SB = null; ALL = [];
+  setStatus('未连接');
+  $('reload').disabled = true;
+  $('list').innerHTML = '<div class="empty">已清除保存的 key。</div>';
+};
+$('key').addEventListener('keydown', function(e){ if (e.key === 'Enter') connect(); });
+
+$('urlhint').textContent = SB_URL_CANDIDATES[0];
+
+/* 启动时尝试自动填充并按需连接 */
+(function(){
+  var saved = null;
+  try { saved = localStorage.getItem(KEY_LS); } catch(e){}
+  if (saved) { $('key').value = saved; $('remember').checked = true; connect(); }
+})();
+</script>
+</body>
+</html>
