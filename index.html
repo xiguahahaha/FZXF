@@ -242,7 +242,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .stats-line b{color:var(--lapis2);font-size:17px;font-weight:800;margin:0 2px;}
 .end-rank{text-align:center;font-size:14px;color:#7a5c1e;background:#fdf6e3;border:1px solid #f0e0b8;border-radius:10px;padding:10px 12px;margin:2px 0 12px;}
 /* 防骗性格入口/结果块（结算页原称号栏位） */
-.pt-box{background:#fff;border-radius:14px;padding:15px;margin:0 0 16px;box-shadow:0 2px 10px rgba(30,58,95,.07);text-align:left;}
+.pt-box{background:#fff;border-radius:14px;padding:15px;margin:16px 0;box-shadow:0 2px 10px rgba(30,58,95,.07);text-align:left;}
 .pt-box-top{font-size:11px;font-weight:800;color:#8b96a2;letter-spacing:2px;margin-bottom:9px;}
 .pt-box-body{display:flex;align-items:center;gap:12px;}
 .pt-box-txt{flex:1;font-size:13.5px;color:#3d4a58;line-height:1.62;}
@@ -351,6 +351,16 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
       </div>
       <button class="btn ghost" id="btn-share-save" onclick="saveShareImage()" style="margin-top:10px">⬇️ 保存成绩卡</button>
+      <!-- 防骗性格：往上挪了，紧跟在成绩区之后、留言墙之前。
+           理由：玩完一局正好是「想再测点什么」的时刻，性格测试和游戏成绩是同一类东西，
+           顺手就能点；留言墙是要动笔写的，往后放更合理。 -->
+      <div class="pt-box" id="pt-box">
+        <div class="pt-box-top">防骗性格</div>
+        <div class="pt-box-body">
+          <div class="pt-box-txt" id="pt-box-txt">12 道情境题，测你的防骗性格。和上面的游戏成绩分开算。</div>
+          <button class="btn pt-btn" id="btn-pt-start" onclick="startPTest('s-end')">开始测试 →</button>
+        </div>
+      </div>
       <!-- 留言墙：公开列表，所有人都能看到别人的留言。
            发言门槛 = 必须先玩过一局（no-game 时整块藏掉），且留言自动带上本局成绩。
            删除只走后台（前端不持有任何删除凭据），被隐藏的留言前端查不到。 -->
@@ -371,13 +381,6 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         </div>
         <div class="wall-foot">
           <button type="button" id="wall-refresh" onclick="loadWall(true)">↻ 刷新留言</button>
-        </div>
-      </div>
-      <div class="pt-box" id="pt-box">
-        <div class="pt-box-top">防骗性格</div>
-        <div class="pt-box-body">
-          <div class="pt-box-txt" id="pt-box-txt">12 道情境题，测你的防骗性格。和上面的游戏成绩分开算。</div>
-          <button class="btn pt-btn" id="btn-pt-start" onclick="startPTest('s-end')">开始测试 →</button>
         </div>
       </div>
       <button class="btn ghost" onclick="restart()">↻ 再玩一局</button>
@@ -1604,7 +1607,10 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','
      人工：is_hidden（挡一切漏网的）—— 这也是唯一的兜底手段，务必定期看一眼后台。 */
 
 const WALL_MAX=200;              // 与 HTML 的 maxlength 保持一致，两处必须同改
-const WALL_COOLDOWN=30000;       // 本地冷却：两次发布之间的最小间隔(ms)
+const WALL_COOLDOWN=10000;       // 本地冷却：两次发布之间的最小间隔(ms)
+                                 // ⚠️ 必须和数据库 RPC 里那个 interval 保持一致，
+                                 //    否则会出现「前端放行、后端拒绝」的困惑体验。
+                                 //    数据库那份才是权威（这里的改 localStorage 就绕过了）。
 const WALL_TIMEOUT=15000;        // 国内访问 Supabase 偏慢：实测首次请求（含 DNS+TCP+TLS 握手）要约 8.9 秒。
                                  // 原来给 9000ms 几乎没有余量，冷启动那一次必然被 abort，
                                  // 表现就是「第一次点发布必定失败、再点一次才可能成功」。给到 15 秒。
