@@ -345,15 +345,9 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
         <div class="beat-bar"><div class="beat-fill" id="beat-fill"></div></div>
         <div class="beat-sub" id="beat-sub"></div>
       </div>
-      <div class="share-card">   <!-- 结算成绩卡：canvas 画成图片，长按可保存 -->
-        <div class="big" id="sc-title">反诈先锋</div>
-        <div class="mid" id="sc-desc"></div>
-        <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
-      </div>
-      <button class="btn ghost" id="btn-share-save" onclick="saveShareImage()" style="margin-top:10px">⬇️ 保存成绩卡</button>
-      <!-- 防骗性格：往上挪了，紧跟在成绩区之后、留言墙之前。
-           理由：玩完一局正好是「想再测点什么」的时刻，性格测试和游戏成绩是同一类东西，
-           顺手就能点；留言墙是要动笔写的，往后放更合理。 -->
+      <!-- 防骗性格：紧跟「打败了多少玩家」之后。
+           玩完一局正好是「想再测点什么」的时刻，性格测试和游戏成绩是同一类东西，
+           顺手就能点；成绩卡与保存按钮是一组，放它们后面反而会把它俩拆开。 -->
       <div class="pt-box" id="pt-box">
         <div class="pt-box-top">防骗性格</div>
         <div class="pt-box-body">
@@ -361,6 +355,12 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
           <button class="btn pt-btn" id="btn-pt-start" onclick="startPTest('s-end')">开始测试 →</button>
         </div>
       </div>
+      <div class="share-card">   <!-- 结算成绩卡：canvas 画成图片，长按可保存 -->
+        <div class="big" id="sc-title">反诈先锋</div>
+        <div class="mid" id="sc-desc"></div>
+        <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
+      </div>
+      <button class="btn ghost" id="btn-share-save" onclick="saveShareImage()" style="margin-top:10px">⬇️ 保存成绩卡</button>
       <!-- 留言墙：公开列表，所有人都能看到别人的留言。
            发言门槛 = 必须先玩过一局（no-game 时整块藏掉），且留言自动带上本局成绩。
            删除只走后台（前端不持有任何删除凭据），被隐藏的留言前端查不到。 -->
@@ -380,6 +380,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
           <div class="wall-msg" id="wall-msg">正在加载留言…</div>
         </div>
         <div class="wall-foot">
+          <button type="button" id="wall-more" onclick="loadWall(false,true)" style="display:none">加载更多 ↓</button>
           <button type="button" id="wall-refresh" onclick="loadWall(true)">↻ 刷新留言</button>
         </div>
       </div>
@@ -609,105 +610,101 @@ function computeBeat(sc){
 
 // 每题：场景引子 + 题干 + 三个选项（每选项标出它落在哪一极）
 const PTEST=[
-  // ── 维度① 信什么（auth 权威 vs kin 亲缘）──
   {dim:'trust',
-   scene:'下午 3 点，你接到一个电话，对方报出了你的全名和身份证后四位。',
-   q:'"我是XX银行风控中心的，你名下这张卡刚才在境外有一笔 1.8 万的消费，需要你配合冻结。"他的语气很专业，还报了一个工号。你会先怎么做？',
+   scene:'晚上九点多，一个陌生号码打来，自称社保局工作人员，说你的医保卡涉嫌违规使用，需要马上处理。对方报出了你的姓名和身份证后四位。',
+   q:'你打算怎么办？',
    opts:[
-     {k:'a',t:'打银行卡背面那个官方客服电话，让他直接查这笔消费'},
-     {k:'a',t:'问他哪个部门的、全名叫什么，然后挂了自己上网查这个银行号码'},
-     {k:'k',t:'既然他能报出我的信息，应该是真的，先按他说的把卡冻了再说'}
-   ]},
-  {dim:'trust',
-   scene:'你家孩子在外地上大学。周三早上，一个陌生号码打来。',
-   q:'"阿姨，我是他辅导员王老师。他昨天在宿舍晕倒了，现在在附一院急诊，要先交 8000 押金，他手机锁着打不通。"你会？',
-   opts:[
-     {k:'k',t:'孩子的事等不了，先转过去，回头再跟学校核对'},
-     {k:'a',t:'问他学校教务处的电话，我自己打过去核实这个"王老师"是谁'},
-     {k:'a',t:'先打孩子室友的电话问情况，同时查附一院急诊科电话打过去问有没有这个病人'}
+     {k:'a',t:'挂了，拨 12333 官方热线问一下有没有这回事'},
+     {k:'a',t:'挂了，去人社局的官方 App 里查自己的参保状态'},
+     {k:'k',t:'挂了，先问问家里人有没有接到过类似的电话'}
    ]},
   {dim:'trust',
-   scene:'微信上一个头像和你表哥一样的号加你，说换了新号。',
-   q:'聊了两句家常，他忽然说生意上急缺 2 万周转，明天就还。你会？',
+   scene:'小区业主群里有人发消息："物业费内部折扣，最后两天，想办的加这个群。"发消息的人你不太熟。',
+   q:'你会怎么做？',
    opts:[
-     {k:'k',t:'是表哥本人，头像和说话方式都对得上，先转给他应个急'},
-     {k:'a',t:'打他原来的号问一句是不是换号了，通了就直接问借钱的事'},
-     {k:'a',t:'不转。等他下次当面或者视频的时候再说'}
+     {k:'k',t:'先在群里问一句：有邻居办过吗，办的怎么样'},
+     {k:'k',t:'私聊一下平时熟的那户邻居，问问他们怎么看'},
+     {k:'a',t:'不理这些，直接去物业前台问有没有这个活动'}
    ]},
-  // ── 维度② 图什么（gain 贪利 vs loss 避害）──
-  {dim:'drive',
-   scene:'你被拉进一个"内部福利群"，群里每天有人晒收益截图。',
-   q:'群主私聊你："今天有个短线名额，投 5000 三天返 6500，我留了一个给你，要不要？"你会？',
+  {dim:'trust',
+   scene:'收到一条短信："您的信用卡积分将于本月底清零，点击链接兑换礼品。"链接是个短网址。',
+   q:'你会怎么处理？',
    opts:[
-     {k:'g',t:'投 5000 试试，三天的周期不算长，赚了就把本金撤出来'},
-     {k:'l',t:'不投。但如果他只让我投 500 试水，我可能会试试'},
-     {k:'l',t:'不投。这种"内部名额"就是话术，直接退群'}
-   ]},
-  {dim:'drive',
-   scene:'手机上弹出一条短信："您名下医保卡在异地异常消费 8600 元，今日内未处理将冻结账户。"',
-   q:'附了一个"医保服务"链接。你会？',
-   opts:[
-     {k:'l',t:'心里一紧，先点进去看看是不是真的被消费了'},
-     {k:'l',t:'不点链接，但马上打 12333 问一下我的医保卡状态'},
-     {k:'g',t:'不理会。医保卡冻结不了我的钱，真有事去大厅办就行'}
+     {k:'a',t:'打开银行的官方 App，在里面查积分和兑换入口'},
+     {k:'k',t:'先问问同事有没有收到过，看看是不是群发'},
+     {k:'a',t:'打银行卡背面的客服电话问一句'}
    ]},
   {dim:'drive',
-   scene:'你朋友推给你一个"高息理财"，说年化 12%，起投 5 万，只剩最后一个名额。',
-   q:'你会？',
+   scene:'朋友说他有个"内部渠道"，年化能到 15%，只对熟人开放，问你要不要一起。',
+   q:'你第一反应是什么？',
    opts:[
-     {k:'g',t:'12% 比银行高太多了，先投 5 万试试，不行再撤'},
-     {k:'g',t:'先投 5 万，但要问清楚钱投到哪个项目、谁来兜底'},
-     {k:'l',t:'不投。超过 8% 还敢承诺保本的，我一律不碰'}
+     {k:'g',t:'我想先把它研究透：收益从哪来、谁在管、风险在哪'},
+     {k:'g',t:'我会花时间弄明白规则，弄不明白就不参与'},
+     {k:'l',t:'收益越高我越警惕，看不懂的东西我一律不碰'}
    ]},
-  // ── 维度③ 靠什么（solo 独断 vs verify 求证）──
+  {dim:'drive',
+   scene:'手机上弹出一条通知："恭喜您成为幸运用户，可领取 888 元红包，需先支付 8 元手续费。"',
+   q:'你会怎么做？',
+   opts:[
+     {k:'l',t:'不付。中奖不需要先交钱，这个道理我清楚'},
+     {k:'l',t:'直接删掉，不点也不回'},
+     {k:'g',t:'先查一下这个活动是不是真的存在，确认真假再说的'}
+   ]},
+  {dim:'drive',
+   scene:'刷到一个理财课广告："限时特惠 199 元，今晚 24 点截止，学完能避开 90% 的坑。"',
+   q:'你会怎么想？',
+   opts:[
+     {k:'g',t:'会看看课程大纲和讲师是谁，值这个价再考虑'},
+     {k:'l',t:'越是催我"今晚截止"的，我越不着急掏钱'},
+     {k:'g',t:'先记下来，回头自己搜搜有没有免费的内容能替代'}
+   ]},
   {dim:'mode',
-   scene:'你正忙着，一个没存名字的号码连打了三次。接起来对方说有急事。',
-   q:'你手上还有一堆事没做完。这种情况下你更可能？',
+   scene:'收到一条短信："您的快递在运输中丢失，请点击链接申请理赔。"你最近确实有包裹在路上。',
+   q:'你会怎么核实？',
    opts:[
-     {k:'s',t:'先听他说完，自己判断是不是要紧，是就当场处理'},
-     {k:'v',t:'跟他说我现在有事，让他发短信说明情况，我忙完再看'},
-     {k:'v',t:'挂掉，然后搜一下这个号码有没有被标记过'}
+     {k:'v',t:'打开购物 App 看物流状态，再问一下卖家的客服'},
+     {k:'v',t:'打快递公司的官方客服电话，报单号问一句'},
+     {k:'s',t:'我先翻转账记录看今天买没买，没买就直接删'}
    ]},
   {dim:'mode',
-   scene:'你在网上挂了台旧手机卖。有人联系你说想买，但要你先点他发的一个"验机平台"链接，把手机序列号填进去。',
-   q:'他说平台会先付定金给你。你会？',
+   scene:'家人转发来一条消息："社区免费领鸡蛋，扫码登记就行"，还说"好多人都在领"。',
+   q:'你会怎么回应？',
    opts:[
-     {k:'v',t:'不点链接。让他走平台官方 App 交易，序列号我当面给他看'},
-     {k:'s',t:'点开看一眼，如果就是个填序列号的页面，填一下也没什么'},
-     {k:'s',t:'不点，但我会自己搜一下这个平台的名字看看有没有人用过'}
+     {k:'v',t:'先查一下这个活动的主办方是谁，社区有没有公示'},
+     {k:'s',t:'直接跟家人说别扫，这种事我一律不参与'},
+     {k:'v',t:'上网搜一下有没有人反馈过类似的活动是骗局'}
    ]},
   {dim:'mode',
-   scene:'你收到一条自称"天猫客服"的消息，说你买的东西有质量问题要给你三倍赔偿。',
-   q:'对方让你加一个微信"理赔专员"，说要在那边走流程。你会？',
+   scene:'刷到一个"0 元购"活动，商品看着不错，只是需要先付 9.9 元运费。',
+   q:'你会怎么判断？',
    opts:[
-     {k:'s',t:'加微信先聊着，我倒要看看他葫芦里卖的什么药'},
-     {k:'v',t:'不通过验证，直接打开天猫 App 找在线客服问这单有没有赔付'},
-     {k:'v',t:'先不通过，等他有下一步动作，把截图留着'},
-   ]},
-  // ── 维度④ 什么时候（rush 急躁 vs delay 拖延）──
-  {dim:'pace',
-   scene:'周日下午，你一个人在家。手机忽然响了，是自称公检法的电话，说你涉嫌一起案件。',
-   q:'对方语气很急："今天下午 5 点前必须把资金清查完，不然就转到检察院了。"你会？',
-   opts:[
-     {k:'r',t:'既然有期限，那我得赶紧配合，先按他说的做'},
-     {k:'d',t:'不着急，先挂了打 110 问问有没有这回事'},
-     {k:'d',t:'不配合。他说得再急，我也不会在电话里动钱'}
-   ]},
-  {dim:'pace',
-   scene:'凌晨 1 点，你收到一条短信："您的账户余额不足，请于今日内点击链接完成认证，否则将影响征信。"',
-   q:'你躺在床上看到这条消息。你会？',
-   opts:[
-     {k:'r',t:'征信的事不能拖，先点进去看看要认证什么'},
-     {k:'d',t:'太晚了不想动，明天早上打银行客服问一句再说'},
-     {k:'d',t:'直接删掉。银行不会半夜发这种短信'}
+     {k:'s',t:'我对所有"先付钱"的活动一律跳过，不花这个心思'},
+     {k:'v',t:'先看看这个平台的口碑，有没有别人维权的记录'},
+     {k:'v',t:'想想逻辑：商品白送还倒贴运费，钱从哪来'}
    ]},
   {dim:'pace',
-   scene:'你朋友火急火燎给你发消息："我在外面急用钱，你先转我 5000，明天一定还！"',
-   q:'他平时很少这样找你。你会？',
+   scene:'晚上十一点多，手机收到短信："您的账户存在异常，请立即点击链接验证身份，否则将冻结。"',
+   q:'你打算怎么处理？',
    opts:[
-     {k:'r',t:'朋友着急，先转了，回头再慢慢问怎么回事'},
-     {k:'r',t:'先转给他，但要马上打个电话过去问清楚什么情况'},
-     {k:'d',t:'不着急转。先打个电话确认是他本人在找我'}
+     {k:'d',t:'太晚了不动它，明天早上打官方客服问清楚'},
+     {k:'d',t:'先截图存着，等白天再说，不急这一晚上'},
+     {k:'r',t:'马上打开银行官方 App，自己看一眼账户状态'}
+   ]},
+  {dim:'pace',
+   scene:'一个朋友突然发消息："我在外面急用钱，你先转我 5000，明天一定还！"你们平时关系不错。',
+   q:'你会怎么做？',
+   opts:[
+     {k:'r',t:'马上打个电话过去，听他声音确认是他本人'},
+     {k:'d',t:'先不转，回条消息让他说说具体什么情况'},
+     {k:'d',t:'不着急办。真急的话他会再找我，或者我晚上再问'}
+   ]},
+  {dim:'pace',
+   scene:'领导用微信发来消息："帮我先垫付一笔货款，明天上班就给你报销。"语气挺急。',
+   q:'你会怎么处理？',
+   opts:[
+     {k:'d',t:'先不垫，明天上班当面问一句是不是有这回事'},
+     {k:'r',t:'先打个电话给领导本人，确认一下这事'},
+     {k:'d',t:'回一句"我这两天手头不太方便"，往后放放'}
    ]}
 ];
 
@@ -1607,6 +1604,8 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','
      人工：is_hidden（挡一切漏网的）—— 这也是唯一的兜底手段，务必定期看一眼后台。 */
 
 const WALL_MAX=200;              // 与 HTML 的 maxlength 保持一致，两处必须同改
+const WALL_PAGE=5;               // 留言墙每次展示 5 条，想看更多点「加载更多」再取 5 条
+let wallShown=0;                 // 已经渲染出来的条数，分页用
 const WALL_COOLDOWN=10000;       // 本地冷却：两次发布之间的最小间隔(ms)
                                  // ⚠️ 必须和数据库 RPC 里那个 interval 保持一致，
                                  //    否则会出现「前端放行、后端拒绝」的困惑体验。
@@ -1723,17 +1722,49 @@ function wallItemHTML(m){
          '<div class="wall-txt">'+esc(m.content)+'</div></div>';
 }
 
-function loadWall(manual){
+/* 加载留言。append=true 时是「加载更多」，往列表尾部追加下一页。
+   分页用 offset（不是游标）：留言墙是低频写入，翻页过程中被插队的概率很低，
+   而 offset 实现简单、也不会因为同一秒内多条留言导致游标比较漏项。 */
+function loadWall(manual, append){
   if(!wallReady()){ wallMsg('留言墙还没开放呢'); return; }
-  if(manual) wallMsg('正在刷新…');
-  // 只取没被隐藏的；新到旧；最多 50 条（前端不做分页，量大了再加）
+  if(!append){ wallShown=0; wallMsg(manual?'正在刷新…':'正在加载…'); }
+  else wallMoreBusy(true);
   sbFetch('/rest/v1/messages?select=id,created_at,nickname,content,score,identity'+
-          '&is_hidden=eq.false&order=created_at.desc&limit=50', {method:'GET'}, (err,rows)=>{
-    if(err){ wallMsg(err==='timeout'?'网络有点慢，留言没加载出来':'留言加载失败，稍后再试'); return; }
-    if(!rows || !rows.length){ wallMsg('还没有人留言，来当第一个吧'); return; }
+          '&is_hidden=eq.false&order=created_at.desc&limit='+WALL_PAGE+
+          '&offset='+wallShown, {method:'GET'}, (err,rows)=>{
+    if(err){
+      if(append) wallMoreBusy(false);
+      else wallMsg(err==='timeout'?'网络有点慢，留言没加载出来':'留言加载失败，稍后再试');
+      return;
+    }
+    rows = rows || [];
     const box=document.getElementById('wall-list');
-    if(box) box.innerHTML=rows.map(wallItemHTML).join('');
+    if(!append){
+      if(!rows.length){ wallMsg('还没有人留言，来当第一个吧'); wallMore(false); return; }
+      if(box) box.innerHTML=rows.map(wallItemHTML).join('');
+    } else {
+      if(box) box.insertAdjacentHTML('beforeend', rows.map(wallItemHTML).join(''));
+      wallMoreBusy(false);
+    }
+    wallShown += rows.length;
+    // 刚好取满一页 → 可能还有；不满一页 → 到底了
+    wallMore(rows.length === WALL_PAGE);
   });
+}
+
+function wallMore(hasMore){
+  const b=document.getElementById('wall-more');
+  if(!b) return;
+  b.disabled=false;
+  b.textContent='加载更多 ↓';
+  b.style.display = hasMore ? 'inline-block' : 'none';
+}
+
+function wallMoreBusy(busy){
+  const b=document.getElementById('wall-more');
+  if(!b) return;
+  b.disabled=!!busy;
+  b.textContent = busy ? '加载中…' : '加载更多 ↓';
 }
 
 /* 乐观 UI：先在本地把这条渲染出来，再去后台写。
