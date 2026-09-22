@@ -96,11 +96,13 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .stat-row div{text-align:center;}
 .stat-row .n{font-size:22px;font-weight:800;color:var(--lapis);}
 .stat-row .l{font-size:12px;color:#999;margin-top:2px;}
-.share-card{background:linear-gradient(135deg,var(--lapis),var(--lapis2));color:#fff;border-radius:18px;padding:22px 18px;margin:16px 0;}
-.share-card .big{font-size:30px;font-weight:900;letter-spacing:1px;}
-.share-card .mid{font-size:14px;opacity:.92;margin-top:8px;line-height:1.7;}
-.share-card .qr{margin-top:14px;font-size:12px;background:rgba(255,255,255,.15);display:inline-block;padding:6px 12px;border-radius:10px;}
-.share-img{display:block;width:100%;height:auto;border-radius:18px;}
+/* 关注公众号引导块（首页 + 结算页共用）
+   暖金底 + 左侧金色竖条：够醒目，但比原来的深蓝成绩卡克制，不抢成绩本身。 */
+.follow{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#fff9ea,#fffdf8);border:1.5px solid #f2dca8;border-left:5px solid var(--gold);border-radius:14px;padding:14px 15px;margin:16px 0;box-shadow:0 2px 12px rgba(180,140,40,.13);text-align:left;}
+.follow .fi{font-size:21px;line-height:1;flex-shrink:0;}
+.follow .ft{flex:1;min-width:0;}
+.follow .ft b{display:block;font-size:15.5px;font-weight:900;color:var(--lapis);letter-spacing:.3px;}
+.follow .ft i{display:block;font-style:normal;font-size:12.5px;color:#8a6d2f;line-height:1.6;margin-top:4px;}
 .disclaimer{font-size:11px;color:#9aa5b1;line-height:1.6;text-align:center;margin:14px 0 4px;padding:0 6px;}
 /* 结局页空状态：没玩过游戏就进来时（如直接测完性格点返回），本局成绩全是空值，
    要整块藏掉并改显「去玩」引导，否则顶部是一大片空白 */
@@ -113,8 +115,6 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .end-wrap.no-game .stat-row,
 .end-wrap.no-game .end-rank,
 .end-wrap.no-game .beat,
-.end-wrap.no-game .share-card,
-.end-wrap.no-game #btn-share-save,   /* 没玩过就没有成绩卡，别留一个存不了东西的按钮 */
 .end-wrap.no-game #btn-note,
 .end-wrap.no-game .wall{display:none;}   /* 没玩过就没资格留言（发帖框要被门槛拦住） */
 .end-empty .ee-icon{font-size:40px;line-height:1;margin-bottom:11px;}
@@ -151,7 +151,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .beat-fill{height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,var(--lapis2),var(--gold));transition:width .9s cubic-bezier(.22,1,.36,1);}
 .beat-sub{font-size:11.5px;color:#8b96a2;line-height:1.6;}
 /* 留言墙：结算页底部，公开可见。
-   与 .beat / .share-card 保持同一套白卡 + 淡阴影语言，不引入新色。 */
+   与 .beat 保持同一套白卡 + 淡阴影语言，不引入新色。 */
 .wall{background:#fff;border-radius:14px;padding:15px 15px 13px;margin:16px 0;text-align:left;box-shadow:0 2px 10px rgba(30,58,95,.07);}
 .wall-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}
 .wall-hd .t{font-size:14.5px;font-weight:800;color:var(--lapis);}
@@ -284,6 +284,14 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
       </div>
     </div>
     <div class="stats-line">🔥 已有 <b id="visit-num">…</b> 人次完成测试</div>
+    <!-- 关注引导（首页）：放在三张身份牌之后 —— 选牌这个决策点上最显眼的位置 -->
+    <div class="follow">
+      <span class="fi">📌</span>
+      <span class="ft">
+        <b>关注公众号「写点知识」</b>
+        <i>每期拆一个真实骗局 · 下次骗局前先练手</i>
+      </span>
+    </div>
     <button class="btn ghost" id="btn-pt-home" onclick="startPTest('s-identity')" style="margin-top:14px">🧭 不玩游戏，直接测防骗性格（12 题）</button>
   </section>
 
@@ -338,6 +346,15 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
       <!-- 成绩之后的第一个动作：笔记。
            原来它在 y≈870（首屏之外），而性格测试入口在首屏内 —— 和"第二反应是生成防骗笔记"正好相反。 -->
       <button class="btn" id="btn-note" onclick="openNote()">📝 生成我的防骗笔记</button>
+      <!-- 关注引导（结算页）：紧跟成绩与笔记按钮 —— 这是结算页首屏内的显著位，
+           刚玩完是最愿意继续了解的时刻。成绩卡（深蓝那张）已按用户要求下线。 -->
+      <div class="follow">
+        <span class="fi">📌</span>
+        <span class="ft">
+          <b>关注公众号「写点知识」</b>
+          <i>每期拆一个真实骗局 · 下次骗局前先练手</i>
+        </span>
+      </div>
       <div class="end-rank" id="end-rank" style="display:none"></div>
       <!-- 防骗性格：原「称号」栏位。先做12题独立测试，测完在这里显示结果 -->
       <div class="beat" id="beat-box" style="display:none">
@@ -355,12 +372,6 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
           <button class="btn pt-btn" id="btn-pt-start" onclick="startPTest('s-end')">开始测试 →</button>
         </div>
       </div>
-      <div class="share-card">   <!-- 结算成绩卡：canvas 画成图片，长按可保存 -->
-        <div class="big" id="sc-title">反诈先锋</div>
-        <div class="mid" id="sc-desc"></div>
-        <div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>
-      </div>
-      <button class="btn ghost" id="btn-share-save" onclick="saveShareImage()" style="margin-top:10px">⬇️ 保存成绩卡</button>
       <!-- 留言墙：公开列表，所有人都能看到别人的留言。
            发言门槛 = 必须先玩过一局（no-game 时整块藏掉），且留言自动带上本局成绩。
            删除只走后台（前端不持有任何删除凭据），被隐藏的留言前端查不到。 -->
@@ -994,57 +1005,9 @@ const NC_LAPIS='#1e3a5f', NC_LAPIS2='#2c5f8a';
 const NC_OK='#67c23a', NC_WARN='#e6a23c', NC_BAD='#e15554';
 
 
-/* ================= 结算页分享卡 canvas 化 =================
-   原来它是一块 DOM：长按只能选中文字、存不成图 —— 三张可分享物里唯独它不能存。
-   现在按同样的做法画成图片再以 <img> 显示，长按即可保存。canvas 不可用时退回 DOM 版。 */
-let shareTitle='', shareDesc='';
-const SC_PAD=18;
-function shareCanvasDataURL(){
-  const W=375, inner=W-SC_PAD*2;
-  const probe=document.createElement('canvas').getContext('2d');
-  const wrap=(font,text,max)=>{ probe.font=font; return pcWrap(probe,text,max); };
-  const BIG='900 30px '+PC_FONT, MID='400 14px '+PC_FONT, QR='400 12px '+PC_FONT;
-  const Lbig=wrap(BIG,shareTitle,inner);
-  const Lmid=wrap(MID,shareDesc,inner);
-  const QRTXT='📌 关注「写点知识」· 下次骗局前先练手';
-  probe.font=QR; const qw=Math.min(inner, probew(probe,QRTXT)+24);
-  const h=22 + Lbig.length*40 + 8 + Lmid.length*24 + 14 + 30 + 22;
-  const cv=document.createElement('canvas');
-  cv.width=Math.ceil(W*PC_SCALE); cv.height=Math.ceil(h*PC_SCALE);
-  const ctx=cv.getContext('2d'); ctx.scale(PC_SCALE,PC_SCALE);
-  const g=ctx.createLinearGradient(0,0,W,h);
-  g.addColorStop(0,'#1e3a5f'); g.addColorStop(1,'#2c5f8a');
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,h);
-  let y=22;
-  ctx.font=BIG; ctx.fillStyle='#fff';
-  Lbig.forEach((l,i)=>ctx.fillText(l,SC_PAD,y+i*40+30));
-  y+=Lbig.length*40+8;
-  ctx.font=MID; ctx.fillStyle='rgba(255,255,255,.92)';
-  Lmid.forEach((l,i)=>ctx.fillText(l,SC_PAD,y+i*24+15));
-  y+=Lmid.length*24+14;
-  ctx.fillStyle='rgba(255,255,255,.15)';
-  pcRound(ctx,SC_PAD,y,qw,30,10); ctx.fill();
-  ctx.font=QR; ctx.fillStyle='#fff';
-  ctx.fillText(QRTXT,SC_PAD+12,y+20);
-  return cv.toDataURL('image/jpeg',0.92);
-}
-// 量文字宽度的小工具（probe 上量，别动真实 ctx 的字体）
-function probew(ctx,txt){ return ctx.measureText(txt).width; }
-
-function renderShareCard(){
-  const box=document.querySelector('.share-card');
-  if(!box) return;
-  try{
-    const url=shareCanvasDataURL();
-    box.innerHTML='<img class="share-img" id="share-img" alt="'+esc(shareTitle)+'" src="'+url+'">';
-  }catch(e){
-    // canvas 不可用 → 退回原来的 DOM 版（保持可读，只是存不成图）
-    box.innerHTML='<div class="big">'+esc(shareTitle)+'</div>'+
-      '<div class="mid">'+esc(shareDesc)+'</div>'+
-      '<div class="qr">📌 关注「写点知识」· 下次骗局前先练手</div>';
-  }
-}
-function saveShareImage(){ saveCardImage('share-img','我的反诈成绩.jpg'); }
+/* 结算页成绩卡已下线（2026-09-22 用户决定不要了）：不再生成"成绩分享图"。
+   关注引导改由静态 .follow 块承担（首页与结算页各一处）。
+   ⚠️ saveCardImage() 仍在用 —— 性格卡与防骗笔记靠它保存图片，别跟着删。 */
 
 function noteCanvasDataURL(){
   const probe=document.createElement('canvas').getContext('2d');
@@ -1536,16 +1499,13 @@ function endGame(){
   const raw = state.cleared*20 + state.busted*10;
   const sc = Math.min(100, Math.round(raw / (total*20) * 100));
   // 判定按「实际发生了什么」给，而不是只看分数 —— 这样它和下面那句风险文案永远不会互相打脸
-  let title, color, desc;
+  let title, color;
   if(state.leakLevel>0){
     title='有失守';color='var(--bad)';
-    desc='东西真的出去了。骗子这一局拿到了能用的信息。';
   }else if(state.cleared===total){
     title=total+'关全守住';color='var(--gold)';
-    desc='零泄露，骗子没拿到任何可用信息。';
   }else{
     title='都挡住了损失';color='var(--lapis2)';
-    desc='钱和信息都还在，但有几关是被牵着走的 —— 骗局没挡住。';
   }
   document.getElementById('end-title').textContent=title;
   document.getElementById('end-title').style.color=color;
@@ -1558,10 +1518,6 @@ function endGame(){
   document.getElementById('st-clear').textContent=state.cleared;
   document.getElementById('st-bust').textContent=state.busted;
   document.getElementById('st-leak').textContent=state.leakLevel;
-  shareTitle='爸妈的手机里，藏着 '+ROUND+' 个骗局';
-  const keepLine = state.identity==='youth'?'守住钱包，从练手开始。':state.identity==='elder'?'守住养老钱，从练手开始。':'守住积蓄，从练手开始。';
-  shareDesc=title+' · '+sc+'分 · '+desc+' '+keepLine;
-  renderShareCard();   // 画成图片，长按可保存
   // shield svg
   const shieldColor = state.leakLevel>0?'#9b1c1c':(state.cleared===total?'#e8b339':'#2c5f8a');
   document.getElementById('end-shield').innerHTML='<svg viewBox="0 0 100 100"><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="'+shieldColor+'" opacity=".18"/><path d="M50 6 L88 20 V48 C88 74 70 90 50 96 C30 90 12 74 12 48 V20 Z" fill="none" stroke="'+shieldColor+'" stroke-width="4"/><text x="50" y="58" font-size="34" text-anchor="middle" fill="'+shieldColor+'">'+(state.leakLevel>0?'!':'✓')+'</text></svg>';
