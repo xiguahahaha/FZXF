@@ -1302,7 +1302,7 @@ function startPTestFromHome(){ startPTest('s-identity'); }
 function show(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  if(id==='s-end') syncEndEmpty();   // 每次进结局页都同步空状态（含浏览器返回进来的）
+  if(id==='s-end'){ syncEndEmpty(); loadWallAuto(); }   // 进结局页：同步空状态 + 确保留言已加载（含浏览器返回进来的）
   window.scrollTo(0,0);
 }
 
@@ -1722,6 +1722,18 @@ function wallItemHTML(m){
          '<div class="wall-txt">'+esc(m.content)+'</div></div>';
 }
 
+/* 是否已成功加载过留言。作用见 loadWallAuto()。 */
+let wallLoaded=false;
+
+/* 进结算页时自动加载留言。
+   没有它的话，留言墙会一直停在 HTML 里那句静态占位「正在加载留言…」，
+   用户必须手点「刷新留言」才看得到内容 —— 这就是本函数存在的唯一理由。
+   已成功加载过就直接返回：既省一次请求，也避免把用户点「加载更多」展开的列表重置回第一页。 */
+function loadWallAuto(){
+  if(wallLoaded) return;
+  loadWall(false);
+}
+
 /* 加载留言。append=true 时是「加载更多」，往列表尾部追加下一页。
    分页用 offset（不是游标）：留言墙是低频写入，翻页过程中被插队的概率很低，
    而 offset 实现简单、也不会因为同一秒内多条留言导致游标比较漏项。 */
@@ -1738,6 +1750,7 @@ function loadWall(manual, append){
       return;
     }
     rows = rows || [];
+    wallLoaded = true;          // 成功拿到响应（含空列表）才算「已加载」；失败不置位，以便下次自动重试
     const box=document.getElementById('wall-list');
     if(!append){
       if(!rows.length){ wallMsg('还没有人留言，来当第一个吧'); wallMore(false); return; }
