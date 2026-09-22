@@ -1856,7 +1856,7 @@ function wallDbError(err){
     // 同时在控制台打出完整原因，方便开发者 F12 一眼定位（普通用户看不到，不打扰）。
     if(body.code==='PGRST205'||body.code==='PGRST202'){
       console.error('留言墙后端未就绪（'+body.code+'）：'+m+
-        '\n→ 需要在 Supabase 的 SQL Editor 里跑建表 SQL，见 留言墙部署指引.md 第二节。');
+        '\n→ 需要在 Supabase 的 SQL Editor 里跑建表 SQL 才能启用留言墙。');
       return '留言功能还在准备中，过阵子再来试试';
     }
     if(/too fast|太快|rate limit/i.test(m)) return '刚发过一条，休息一下再发吧';
