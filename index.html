@@ -427,9 +427,13 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 
 <script src="levels.js"></script>
 <script>
-/* ---- 关卡数据源：本地 levels.js 兜底（离线双击也能玩），线上用数据仓库 FZXF-data 覆盖 ----
-   以后加关/改话术只 push 数据仓库即可，网页仓库不用重新部署 ---- */
-const DATA_URL='https://xiguahahaha.github.io/FZXF-data/levels.js';
+/* ---- 关卡数据源：就是本仓同目录的 levels.js ----
+   上面那行 <script src="levels.js"> 已经同步加载过一遍（离线双击也能玩）。
+   这里再异步拉一次，唯一目的是**绕开浏览器缓存**：改完关卡推上去后，
+   玩家刷新就能拿到新版，不必等 GitHub Pages 那 10 分钟缓存过期。
+   拉不到（离线 / 网络受限）就沿用上面那份，不影响游玩。
+   注：以前这份数据放在独立的 FZXF-data 仓库，现已合并回本仓。 */
+const DATA_URL='levels.js';
 (function(){
   fetch(DATA_URL+'?v='+Date.now(), {cache:'no-store'})
     .then(r=>r.ok?r.text():Promise.reject())
