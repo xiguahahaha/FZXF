@@ -844,8 +844,8 @@ function saveCardImage(imgId,filename){
   a.remove();
   toast('已保存，去「下载」里找');
 }
-function savePersonaImage(){ saveCardImage('persona-img','我的防骗性格.jpg'); }
-function saveNoteImage(){ saveCardImage('note-img','我的防骗笔记.jpg'); }
+function savePersonaImage(){ track('save',{note:'防骗性格卡'}); saveCardImage('persona-img','我的防骗性格.jpg'); }
+function saveNoteImage(){ track('save',{note:'防骗笔记'}); saveCardImage('note-img','我的防骗笔记.jpg'); }
 
 /* ---- 结果卡片 ---- */
 /* ================= 性格卡 canvas 化 =================
@@ -1310,6 +1310,7 @@ function startLine(id){
   if(forced) picks[0]=forced;        // ?lv= 直达：固定在开局第一关
   state={identity:id, level:0, step:0, round:1, steps:null, multi:false, thread:[], leakLevel:0, cleared:0, busted:0, log:[], playlist: picks.map(lv=>({...lv}))};
   pushNav('s-identity');   // 本局只占 1 条历史：从任意一关返回都回首页
+  track('start',{identity:id});   // 埋点：本局开局
   renderLevel();
 }
 
@@ -1344,6 +1345,7 @@ function renderLevel(){
   state.step=0;
   state.round=1;
   state.chatH=0;                 // 对话框锁定高度（多轮关卡用）
+  state.trackStart=Date.now();   // 埋点：本关停留时长起点
   /* 第一关的一次性新手引导。做法刻意保守：
      ① 只在第 1 关、② 每台设备只显示一次、③ 不做弹窗/教程页，就一句话。
      规则的另一半放在"首关复盘"里讲 —— 那正好是玩家第一次看到判定徽章的时刻，教学点最准。 */
@@ -1457,6 +1459,9 @@ function choose(i){
   else state.busted++;
   // 记账：供结算后的「防骗笔记」逐关回顾
   state.log.push({title:lv.title, kp:lv.kp, tag:tag, verdict:verdict, myLabel:myText, desc:o.desc});
+  // 埋点：这一关结束了（多轮关卡只在终局报一次，中途步不算一关）
+  track('level',{lv_title:lv.title, tag:tag,
+    dur_ms:(state.trackStart ? Date.now()-state.trackStart : null)});
   // review
   document.getElementById('r-title').textContent='第 '+(state.level+1)+' 关复盘 · '+lv.title;
   const vd=document.getElementById('r-verdict');
@@ -1533,6 +1538,8 @@ function endGame(){
     const bs=document.getElementById('beat-sub'); if(bs) bs.textContent='';
     const bf=document.getElementById('beat-fill'); if(bf) bf.style.width='0';
   }
+  // 埋点：整局结果（放在 computeBeat 之前，避免被异步逻辑影响）
+  track('end',{score:sc, cleared:state.cleared, busted:state.busted, leak:state.leakLevel});
   computeBeat(sc);
   lastScore = sc;      // 留言要自动带上本局成绩，存一份给 submitWall 用
   hasPlayed=true;      // 这一局有成绩了：结局页退出空状态（必须放在 show 之前）
@@ -1587,6 +1594,43 @@ const WALL_FPK='raf_wall_fp';    // 本机匿名指纹（客户端限流用，�
    运行时想临时换项目时，也可以在控制台先执行 window.__SB_URL='...' 再刷新。 */
 const SB_URL=window.__SB_URL || 'https://kgcfzayorjkotjmhbhpj.supabase.co';
 const SB_KEY=window.__SB_KEY || 'sb_publishable_N4Kx0AGjvdUCK4YzkMX55A_2Kl1e4pe';
+
+/* ================= 匿名埋点（关卡级）=================
+   设计原则（与留言墙同一套思路）：
+   ① 唯一入口是 RPC track_event —— events 表对 anon **没有任何权限**（连 select 都没有），
+      所以别人拿着页面里的公开键也读不到埋点数据。
+   ② 上报全链路 try/catch + .catch(()=>{})：埋点失败绝不影响游戏。
+   ③ 离场事件用 sendBeacon —— fetch 在页面卸载时会被浏览器掐断。
+   ④ client_fp 只是 localStorage 里的随机串（不是设备指纹），仅用于服务端限流。
+   真出问题可在浏览器控制台执行 trackOn=false 立刻关掉上报。 */
+const TRACK_SID=(function(){ try{ return 's'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }catch(e){ return 's0'; } })();
+let trackOn=true;
+function track(kind, extra){
+  if(!trackOn) return;
+  try{
+    const s=(typeof state!=='undefined' && state) ? state : {};
+    const body={kind:kind, client_fp:wallFp(), session_id:TRACK_SID};
+    if(s.identity) body.identity=s.identity;
+    // 关卡序号只在「已开局」且「在本局关数范围内」时才带：
+    //   · 未开局（首页）不带 —— 否则 open 会报一个不存在的"第 1 关"
+    //   · 结算后 state.level 已递增到 ROUND，+1 会越界成 7，此时不带
+    if(s.identity && typeof s.level==='number'){
+      const idx=s.level+1;
+      if(idx>=1 && idx<=ROUND) body.lv_index=idx;
+    }
+    const b=extra||{};
+    for(const k in b){ if(b[k]!==undefined && b[k]!==null) body[k]=b[k]; }
+    const url=SB_URL+'/rest/v1/rpc/track_event';
+    const payload=JSON.stringify({payload:body});
+    if(kind==='exit' && navigator.sendBeacon){
+      navigator.sendBeacon(url+'?apikey='+encodeURIComponent(SB_KEY), new Blob([payload],{type:'application/json'}));
+      return;
+    }
+    fetch(url,{method:'POST',keepalive:true,
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'},
+      body:payload}).catch(()=>{});
+  }catch(e){ /* 埋点永不抛错 */ }
+}
 
 /* 兜底哨兵：万一有人（包括将来的我）把 Secret key 填进了 SB_KEY，
    这一段会立刻在控制台炸出来，而不是安静地把数据库交出去。
@@ -1949,4 +1993,14 @@ try{ const best=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}'); }catch(e){}
 });
 // 页面加载即刷新全球人次显示
 initCount();
+track('open');   // 埋点：页面打开
+/* 离场埋点：只用 pagehide —— 它在移动端和桌面端都可靠，且只触发一次。
+   ⚠️ 不要用 visibilitychange：切后台/切标签会反复触发，会把「流失」统计冲爆。 */
+window.addEventListener('pagehide',function(){
+  var scr=(document.querySelector('.screen.active')||{}).id||'';
+  // 结算页的 state.level 已经递增到 ROUND，直接 +1 会报成"第 7 关"（本局只有 6 关）
+  var done=(scr==='s-end');
+  var idx=Math.min(((state&&state.level!=null)?(state.level+1):0), ROUND);
+  track('exit',{note:(done?'已玩到结算':'停在第 '+idx+' 关')+' · '+scr});
+});
 </script>
